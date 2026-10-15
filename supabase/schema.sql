@@ -33,9 +33,11 @@ CREATE TABLE IF NOT EXISTS public.daily_menus (
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   dish_id UUID NOT NULL REFERENCES public.dishes(id) ON DELETE CASCADE,
   stock INTEGER NOT NULL DEFAULT 10,
+  initial_stock INTEGER NOT NULL DEFAULT 0,
   is_available BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT unique_daily_dish_date UNIQUE (date, dish_id)
+  CONSTRAINT unique_daily_dish_date UNIQUE (date, dish_id),
+  CONSTRAINT daily_menu_stock_non_negative CHECK (stock >= 0)
 );
 
 -- 5. Tabla de Pedidos
@@ -78,21 +80,47 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DES
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
 
 -- 8. Trigger para Descontar Stock Automáticamente en daily_menus
+--    Nota: se evita usar variables PL/pgSQL dentro del UPDATE (Postgres las confunde con
+--    relaciones y lanza "42P01 relation does not exist"). Se calcula todo desde columnas.
 CREATE OR REPLACE FUNCTION public.decrement_daily_menu_stock()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   IF NEW.dish_id IS NOT NULL THEN
+    -- Descuenta solo si hay stock suficiente
     UPDATE public.daily_menus
-    SET 
-      stock = GREATEST(0, stock - NEW.quantity),
-      is_available = CASE WHEN (stock - NEW.quantity) <= 0 THEN false ELSE is_available END
-    WHERE 
-      dish_id = NEW.dish_id 
-      AND date = CURRENT_DATE;
+    SET
+      stock = stock - NEW.quantity,
+      initial_stock = CASE
+        WHEN COALESCE(initial_stock, 0) = 0 THEN stock
+        ELSE GREATEST(initial_stock, stock)
+      END,
+      is_available = CASE
+        WHEN (stock - NEW.quantity) <= 0 THEN false
+        ELSE is_available
+      END
+    WHERE
+      dish_id = NEW.dish_id
+      AND date = CURRENT_DATE
+      AND stock >= NEW.quantity;
+
+    -- Si no actualizó filas: o no estaba en el menú de hoy, o no había stock suficiente
+    IF NOT FOUND THEN
+      PERFORM 1
+      FROM public.daily_menus
+      WHERE dish_id = NEW.dish_id AND date = CURRENT_DATE;
+
+      IF FOUND THEN
+        RAISE EXCEPTION 'Stock insuficiente para el plato %', NEW.dish_id;
+      END IF;
+    END IF;
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS trg_decrement_stock ON public.order_items;
 CREATE TRIGGER trg_decrement_stock
@@ -154,6 +182,13 @@ CREATE POLICY "Admins actualizan pedidos"
   TO authenticated
   USING (true);
 
+-- Permitir que el admin elimine pedidos (p. ej. limpiar registros de prueba).
+-- Al borrar el pedido, sus order_items se eliminan por ON DELETE CASCADE.
+CREATE POLICY "Admins eliminan pedidos"
+  ON public.orders FOR DELETE
+  TO authenticated
+  USING (true);
+
 -- Order Items: Inserción pública
 CREATE POLICY "Clientes pueden crear items de pedido"
   ON public.order_items FOR INSERT
@@ -165,8 +200,9 @@ CREATE POLICY "Admins ven items de pedido"
   TO authenticated
   USING (true);
 
--- 11. Habilitar Supabase Realtime para la tabla de pedidos
+-- 11. Habilitar Supabase Realtime para la tabla de pedidos y menú del día
 ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_menus;
 
 -- 12. Creación del Storage Bucket para fotos de platos
 INSERT INTO storage.buckets (id, name, public) 
@@ -209,8 +245,129 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Asignar los platos de hoy al menú diario
-INSERT INTO public.daily_menus (date, dish_id, stock, is_available)
-SELECT CURRENT_DATE, id, 15, true
+INSERT INTO public.daily_menus (date, dish_id, stock, initial_stock, is_available)
+SELECT CURRENT_DATE, id, 15, 15, true
 FROM public.dishes
 WHERE is_active = true
 ON CONFLICT (date, dish_id) DO NOTHING;
+
+-- 14. Configuración del restaurante (teléfono WhatsApp, tarifa delivery, nombre)
+CREATE TABLE IF NOT EXISTS public.restaurant_settings (
+  id TEXT PRIMARY KEY DEFAULT 'main',
+  whatsapp_number TEXT NOT NULL DEFAULT '51999999999',
+  delivery_fee NUMERIC(10, 2) NOT NULL DEFAULT 3.00,
+  restaurant_name TEXT NOT NULL DEFAULT 'MenuLiz',
+  address TEXT DEFAULT 'Atención en local y delivery en zona',
+  opening_hours TEXT DEFAULT 'Lunes a Domingo: 11:30 AM - 4:30 PM',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.restaurant_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins gestionan configuración"
+  ON public.restaurant_settings FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Lectura pública para que el cliente y el layout puedan mostrar nombre, horario y dirección
+CREATE POLICY "Lectura pública de configuración"
+  ON public.restaurant_settings FOR SELECT
+  TO public
+  USING (true);
+
+INSERT INTO public.restaurant_settings (id, whatsapp_number, delivery_fee, restaurant_name)
+VALUES ('main', '51999999999', 3.00, 'MenuLiz')
+ON CONFLICT (id) DO NOTHING;
+
+-- 15. Función RPC para crear pedidos sin exponer SELECT directo al rol anon
+CREATE OR REPLACE FUNCTION public.create_order(
+  p_customer_name TEXT,
+  p_customer_phone TEXT,
+  p_delivery_type TEXT,
+  p_delivery_address TEXT,
+  p_delivery_fee NUMERIC,
+  p_subtotal NUMERIC,
+  p_total NUMERIC,
+  p_payment_method TEXT,
+  p_notes TEXT,
+  p_status TEXT DEFAULT 'nuevo'
+) RETURNS TABLE (id UUID, order_number INTEGER)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id UUID;
+  v_number INTEGER;
+BEGIN
+  INSERT INTO public.orders (
+    customer_name, customer_phone, delivery_type, delivery_address,
+    delivery_fee, subtotal, total, payment_method, notes, status
+  ) VALUES (
+    p_customer_name, p_customer_phone, p_delivery_type, p_delivery_address,
+    p_delivery_fee, p_subtotal, p_total, p_payment_method, p_notes, p_status
+  )
+  RETURNING orders.id, orders.order_number INTO v_id, v_number;
+
+  RETURN QUERY SELECT v_id, v_number;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.create_order(
+  TEXT, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT
+) TO anon, authenticated;
+
+-- 16. Base de clientes (CRM simple para comensales recurrentes)
+CREATE TABLE IF NOT EXISTS public.customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone TEXT NOT NULL UNIQUE,
+  name TEXT,
+  address TEXT,
+  marketing_consent BOOLEAN NOT NULL DEFAULT false,
+  total_orders INTEGER NOT NULL DEFAULT 0,
+  total_spent NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  last_order_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins gestionan clientes"
+  ON public.customers FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION public.upsert_customer(
+  p_phone TEXT,
+  p_name TEXT,
+  p_address TEXT,
+  p_marketing_consent BOOLEAN,
+  p_total NUMERIC
+) RETURNS TABLE (id UUID)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  INSERT INTO public.customers (phone, name, address, marketing_consent, total_orders, total_spent, last_order_at)
+  VALUES (p_phone, p_name, p_address, p_marketing_consent, 1, p_total, now())
+  ON CONFLICT (phone) DO UPDATE SET
+    name = EXCLUDED.name,
+    address = COALESCE(EXCLUDED.address, public.customers.address),
+    marketing_consent = public.customers.marketing_consent OR EXCLUDED.marketing_consent,
+    total_orders = public.customers.total_orders + 1,
+    total_spent = public.customers.total_spent + EXCLUDED.total_spent,
+    last_order_at = now(),
+    updated_at = now()
+  RETURNING customers.id INTO v_id;
+
+  RETURN QUERY SELECT v_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.upsert_customer(TEXT, TEXT, TEXT, BOOLEAN, NUMERIC) TO anon, authenticated;
