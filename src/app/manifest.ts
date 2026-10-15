@@ -7,18 +7,20 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Pide tu menú del día y platos caseros en Perú directo por WhatsApp',
     start_url: '/',
     display: 'standalone',
-    background_color: '#ffffff',
+    background_color: '#f97316',
     theme_color: '#f97316',
     icons: [
       {
-        src: '/icons/icon-192x192.png',
+        src: '/api/pwa-icon?size=192',
         sizes: '192x192',
         type: 'image/png',
+        purpose: 'any',
       },
       {
-        src: '/icons/icon-512x512.png',
+        src: '/api/pwa-icon?size=512',
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'any',
       },
     ],
   };
