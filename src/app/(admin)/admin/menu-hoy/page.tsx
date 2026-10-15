@@ -33,6 +33,7 @@ export default function AdminMenuHoyPage() {
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [initialStock, setInitialStock] = useState<Record<string, number>>({});
 
   const supabase = createClient();
 
@@ -75,26 +76,30 @@ export default function AdminMenuHoyPage() {
           .eq('date', selectedDate);
 
         const initialSelection: MenuSelectionState = {};
+        const initialStockMap: Record<string, number> = {};
         // Initialize all as unselected with default stock 15
         loadedDishes.forEach((d) => {
           initialSelection[d.id] = { selected: false, stock: 15 };
         });
 
         if (!menuErr && menuData && menuData.length > 0) {
-          menuData.forEach((row: { dish_id: string; stock: number; is_available: boolean }) => {
+          menuData.forEach((row: { dish_id: string; stock: number; initial_stock?: number; is_available: boolean }) => {
             initialSelection[row.dish_id] = {
               selected: true,
               stock: row.stock,
             };
+            initialStockMap[row.dish_id] = Number(row.initial_stock ?? row.stock);
           });
         } else {
           // Preselect all dishes by default if no configuration yet
           loadedDishes.forEach((d) => {
             initialSelection[d.id] = { selected: true, stock: 15 };
+            initialStockMap[d.id] = 15;
           });
         }
 
         setSelection(initialSelection);
+        setInitialStock(initialStockMap);
       } catch (err) {
         console.error('Error loading daily menu config', err);
       } finally {
@@ -130,32 +135,105 @@ export default function AdminMenuHoyPage() {
     setSavedSuccess(false);
 
     try {
-      // 1. Delete previous configuration for selected date
-      await supabase.from('daily_menus').delete().eq('date', selectedDate);
-
-      // 2. Prepare new records
       const selectedDishIds = Object.keys(selection).filter((id) => selection[id]?.selected);
-      const rowsToInsert = selectedDishIds.map((dishId) => ({
-        date: selectedDate,
-        dish_id: dishId,
-        stock: selection[dishId].stock,
-        is_available: selection[dishId].stock > 0,
-      }));
 
-      if (rowsToInsert.length > 0) {
-        await supabase.from('daily_menus').insert(rowsToInsert);
+      // Leer configuración previa para preservar stock inicial/vendidos
+      const { data: existingRows } = await supabase
+        .from('daily_menus')
+        .select('dish_id, initial_stock, stock')
+        .eq('date', selectedDate);
+
+      const existingMap = new Map((existingRows || []).map((r) => [r.dish_id, r]));
+
+      // Eliminar platos deseleccionados
+      if (selectedDishIds.length > 0) {
+        await supabase
+          .from('daily_menus')
+          .delete()
+          .eq('date', selectedDate)
+          .not('dish_id', 'in', `(${selectedDishIds.join(',')})`);
+      } else {
+        await supabase.from('daily_menus').delete().eq('date', selectedDate);
+      }
+
+      // Actualizar/insertar platos seleccionados preservando stock inicial cuando exista
+      for (const dishId of selectedDishIds) {
+        const enteredStock = selection[dishId].stock;
+        const existing = existingMap.get(dishId);
+        const initial = existing?.initial_stock && existing.initial_stock > 0
+          ? Math.max(Number(existing.initial_stock), enteredStock)
+          : enteredStock;
+
+        const payload = {
+          date: selectedDate,
+          dish_id: dishId,
+          stock: enteredStock,
+          initial_stock: initial,
+          is_available: enteredStock > 0,
+        };
+
+        const { error: upErr } = await supabase
+          .from('daily_menus')
+          .upsert(payload, { onConflict: 'date,dish_id' });
+
+        if (upErr) throw upErr;
       }
 
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
-      console.warn('Supabase save daily menu error, persisted locally:', err);
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      console.error('Error guardando menú del día en Supabase:', err);
+      alert('No se pudo guardar el menú del día. Revisa la consola.');
     } finally {
       setSaving(false);
     }
   };
+
+  // Suscripción en tiempo real al stock del menú del día seleccionado
+  useEffect(() => {
+    const channel = supabase
+      .channel(`stock-${selectedDate}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_menus', filter: `date=eq.${selectedDate}` },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { dish_id?: string; stock?: number; initial_stock?: number; is_available?: boolean };
+          if (!row?.dish_id) return;
+          const realtimeDishId = row.dish_id;
+
+          setSelection((prev) => {
+            const next = { ...prev };
+            if (payload.eventType === 'DELETE') {
+              const existed = next[realtimeDishId];
+              if (existed) next[realtimeDishId] = { selected: false, stock: existed.stock };
+              return next;
+            }
+            if (payload.new) {
+              const nr = payload.new as { dish_id: string; stock: number; is_available: boolean };
+              if (next[nr.dish_id]) {
+                next[nr.dish_id] = { selected: true, stock: Number(nr.stock ?? 0) };
+              }
+            }
+            return next;
+          });
+
+          if (payload.new) {
+            const nr = payload.new as { dish_id: string; initial_stock?: number; stock: number };
+            setInitialStock((prev) => {
+              if (prev[nr.dish_id] === undefined) {
+                return { ...prev, [nr.dish_id]: Number(nr.initial_stock ?? nr.stock) };
+              }
+              return prev;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDate, supabase]);
 
   const entradas = dishes.filter((d) => d.category === 'entrada');
   const segundos = dishes.filter((d) => d.category === 'segundo');
@@ -271,6 +349,9 @@ export default function AdminMenuHoyPage() {
                           onChange={(e) => handleStockChange(dish.id, parseInt(e.target.value) || 0)}
                           className="w-16 px-2 py-1 rounded-lg border border-stone-200 text-xs font-bold text-center bg-stone-50"
                         />
+                        <span className="text-[10px] text-stone-500 font-bold whitespace-nowrap">
+                          Vendido: {Math.max(0, (initialStock[dish.id] ?? stock) - stock)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -320,6 +401,9 @@ export default function AdminMenuHoyPage() {
                           onChange={(e) => handleStockChange(dish.id, parseInt(e.target.value) || 0)}
                           className="w-16 px-2 py-1 rounded-lg border border-stone-200 text-xs font-bold text-center bg-stone-50"
                         />
+                        <span className="text-[10px] text-stone-500 font-bold whitespace-nowrap">
+                          Vendido: {Math.max(0, (initialStock[dish.id] ?? stock) - stock)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -369,6 +453,9 @@ export default function AdminMenuHoyPage() {
                           onChange={(e) => handleStockChange(dish.id, parseInt(e.target.value) || 0)}
                           className="w-16 px-2 py-1 rounded-lg border border-stone-200 text-xs font-bold text-center bg-stone-50"
                         />
+                        <span className="text-[10px] text-stone-500 font-bold whitespace-nowrap">
+                          Vendido: {Math.max(0, (initialStock[dish.id] ?? stock) - stock)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -410,7 +497,9 @@ export default function AdminMenuHoyPage() {
                   selectedEntradas.map((d) => (
                     <div key={d.id} className="p-2 rounded-xl bg-white border border-stone-200 flex justify-between items-center shadow-2xs">
                       <span className="font-semibold text-stone-800 truncate">{d.name}</span>
-                      <span className="text-[10px] font-bold text-stone-400">Stock: {selection[d.id]?.stock}</span>
+                      <span className="text-[10px] font-bold text-stone-400">
+                        Stock: {selection[d.id]?.stock} · Vendido: {Math.max(0, (initialStock[d.id] ?? selection[d.id]?.stock ?? 0) - (selection[d.id]?.stock ?? 0))}
+                      </span>
                     </div>
                   ))
                 )}
@@ -425,7 +514,9 @@ export default function AdminMenuHoyPage() {
                   selectedSegundos.map((d) => (
                     <div key={d.id} className="p-2 rounded-xl bg-white border border-stone-200 flex justify-between items-center shadow-2xs">
                       <span className="font-semibold text-stone-800 truncate">{d.name}</span>
-                      <span className="text-[10px] font-bold text-stone-400">Stock: {selection[d.id]?.stock}</span>
+                      <span className="text-[10px] font-bold text-stone-400">
+                        Stock: {selection[d.id]?.stock} · Vendido: {Math.max(0, (initialStock[d.id] ?? selection[d.id]?.stock ?? 0) - (selection[d.id]?.stock ?? 0))}
+                      </span>
                     </div>
                   ))
                 )}
@@ -440,7 +531,9 @@ export default function AdminMenuHoyPage() {
                   selectedRefrescos.map((d) => (
                     <div key={d.id} className="p-2 rounded-xl bg-white border border-stone-200 flex justify-between items-center shadow-2xs">
                       <span className="font-semibold text-stone-800 truncate">{d.name}</span>
-                      <span className="text-[10px] font-bold text-stone-400">Stock: {selection[d.id]?.stock}</span>
+                      <span className="text-[10px] font-bold text-stone-400">
+                        Stock: {selection[d.id]?.stock} · Vendido: {Math.max(0, (initialStock[d.id] ?? selection[d.id]?.stock ?? 0) - (selection[d.id]?.stock ?? 0))}
+                      </span>
                     </div>
                   ))
                 )}

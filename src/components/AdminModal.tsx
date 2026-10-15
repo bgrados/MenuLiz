@@ -331,7 +331,7 @@ CREATE POLICY "Lectura y escritura publica"
                 // Item List Table / Cards
                 <div className="space-y-3">
                   <div className="text-xs text-stone-500 font-medium">
-                    Cambia la disponibilidad o resalta como "Menú de Hoy" con un solo clic:
+                    Cambia la disponibilidad o resalta como &quot;Menú de Hoy&quot; con un solo clic:
                   </div>
 
                   <div className="divide-y divide-stone-100 border border-stone-200 rounded-2xl overflow-hidden bg-white">

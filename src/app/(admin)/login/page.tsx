@@ -28,22 +28,23 @@ export default function AdminLoginPage() {
       });
 
       if (error) {
-        // If Auth fails (e.g. user not yet created in Supabase Auth), allow admin master access if password matches demo or owner credentials
-        if (password === 'admin123' || password === '123456' || email.includes('admin') || email.includes('menuliz')) {
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('menuliz_admin_auth', 'true');
-            sessionStorage.setItem('menuliz_admin_email', email);
-          }
-          router.push('/admin/dashboard');
-          return;
+        // No crear usuarios automáticamente aquí para no generar errores de rate limit.
+        if (error.message?.toLowerCase().includes('invalid login credentials')) {
+          setErrorMsg('Usuario o contraseña incorrectos. Crea el usuario en Supabase Auth o usa las credenciales demo.');
+        } else {
+          setErrorMsg(error.message || 'Credenciales incorrectas');
         }
-        setErrorMsg(error.message || 'Credenciales incorrectas');
-      } else if (data.session) {
+        return;
+      }
+
+      if (data?.session) {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('menuliz_admin_auth', 'true');
-          sessionStorage.setItem('menuliz_admin_email', email);
+          sessionStorage.setItem('menuliz_admin_email', email.trim());
         }
         router.push('/admin/dashboard');
+      } else {
+        setErrorMsg('Se creó la cuenta, pero se necesita confirmar el email en Supabase Auth.');
       }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Error al conectar');
@@ -52,14 +53,32 @@ export default function AdminLoginPage() {
     }
   };
 
-  const handleQuickDemoLogin = () => {
-    setEmail('duena@menuliz.pe');
-    setPassword('admin123');
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('menuliz_admin_auth', 'true');
-      sessionStorage.setItem('menuliz_admin_email', 'duena@menuliz.pe');
+  const handleQuickDemoLogin = async () => {
+    const demoEmail = 'duena@menuliz.pe';
+    const demoPassword = 'admin123';
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (signInError) throw signInError;
+
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('menuliz_admin_auth', 'true');
+        sessionStorage.setItem('menuliz_admin_email', demoEmail);
+      }
+      router.push('/admin/dashboard');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'No se pudo crear/acceder al usuario demo');
+    } finally {
+      setLoading(false);
     }
-    router.push('/admin/dashboard');
   };
 
   return (

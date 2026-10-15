@@ -89,3 +89,12 @@ export interface ComboCalculationResult {
   leftoverTotal: number;
   subtotal: number;
 }
+
+export interface RestaurantSettings {
+  id: string;
+  phone_number?: string | null;
+  whatsapp_number: string;
+  restaurant_name?: string | null;
+  delivery_fee?: number | null;
+  updated_at?: string;
+}

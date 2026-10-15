@@ -2,13 +2,35 @@ import React from 'react';
 import { CustomerHeader } from '@/components/customer/CustomerHeader';
 import { CustomerBottomNav } from '@/components/customer/CustomerBottomNav';
 import { Heart, Clock, MapPin, Phone } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
 import { RESTAURANT_NAME } from '@/lib/constants';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 
-export default function CustomerLayout({
+export default async function CustomerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Cargar configuración del restaurante (horario, dirección) para el footer
+  let restaurantName = RESTAURANT_NAME;
+  let address = 'Atención en local y delivery en zona';
+  let openingHours = 'Lunes a Domingo: 11:30 AM - 4:30 PM';
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('restaurant_settings')
+      .select('restaurant_name, address, opening_hours')
+      .eq('id', 'main')
+      .maybeSingle();
+    if (data) {
+      restaurantName = data.restaurant_name || restaurantName;
+      address = data.address || address;
+      openingHours = data.opening_hours || openingHours;
+    }
+  } catch {
+    // keep defaults
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900 pb-20 sm:pb-0">
       <CustomerHeader />
@@ -23,7 +45,7 @@ export default function CustomerLayout({
             
             <div className="space-y-2">
               <span className="text-xl font-black text-white">
-                Menu<span className="text-orange-500">Liz</span>
+                {restaurantName}
               </span>
               <p className="text-stone-400 leading-relaxed">
                 El auténtico sabor casero de cada día en Perú. Menús ejecutivos, platos a la carta y pedidos rápidos directo por WhatsApp.
@@ -34,7 +56,7 @@ export default function CustomerLayout({
               <h4 className="font-bold text-white uppercase tracking-wider">Horario de Almuerzos</h4>
               <p className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-orange-500" />
-                <span>Lunes a Sábado: 11:30 AM - 4:30 PM</span>
+                <span>{openingHours}</span>
               </p>
             </div>
 
@@ -42,7 +64,7 @@ export default function CustomerLayout({
               <h4 className="font-bold text-white uppercase tracking-wider">Contacto & Pedidos</h4>
               <p className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-orange-500" />
-                <span>Salón, para llevar y delivery en zona</span>
+                <span>{address}</span>
               </p>
               <p className="flex items-center gap-1.5">
                 <Phone className="w-4 h-4 text-orange-500" />
@@ -62,6 +84,7 @@ export default function CustomerLayout({
       </footer>
 
       <CustomerBottomNav />
+      <PWAInstallPrompt />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Order, OrderStatus } from '@/types';
 import { STATUS_LABELS, STATUS_COLORS, PAYMENT_LABELS } from '@/lib/constants';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateSpanish } from '@/lib/utils';
 import {
   ClipboardList,
   Phone,
@@ -18,6 +18,7 @@ import {
   Check,
   X,
   Radio,
+  Trash2,
 } from 'lucide-react';
 
 export default function AdminPedidosPage() {
@@ -167,10 +168,70 @@ export default function AdminPedidosPage() {
     }
   };
 
+  const handleDeleteOrder = async (order: Order) => {
+    if (!confirm(`¿Eliminar el pedido #${order.order_number || order.id.slice(0, 6)} de ${order.customer_name}? Esto también repondrá el stock de los platos. Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const dateKey = getLocalDateKey(order.created_at);
+
+      // Reponer stock antes de borrar el pedido (el trigger solo descuenta, no repone al borrar)
+      if (order.order_items) {
+        for (const item of order.order_items) {
+          if (!item.dish_id) continue;
+          const { data: dm } = await supabase
+            .from('daily_menus')
+            .select('id, stock')
+            .eq('date', dateKey)
+            .eq('dish_id', item.dish_id)
+            .maybeSingle();
+
+          if (dm) {
+            await supabase
+              .from('daily_menus')
+              .update({
+                stock: Number(dm.stock || 0) + Number(item.quantity || 0),
+                is_available: true,
+              })
+              .eq('id', dm.id);
+          }
+        }
+      }
+
+      const { error: delErr } = await supabase.from('orders').delete().eq('id', order.id);
+      if (delErr) {
+        alert(`No se pudo eliminar el pedido: ${delErr.message || 'Error'}${delErr.code ? ` (Código: ${delErr.code})` : ''}`);
+        return;
+      }
+
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+    } catch (err) {
+      console.error('Error eliminando pedido:', err);
+      alert('Ocurrió un error al eliminar el pedido.');
+    }
+  };
+
   const filteredOrders = orders.filter((o) => {
     if (statusFilter !== 'todos' && o.status !== statusFilter) return false;
     return true;
   });
+
+  // Agrupar los pedidos filtrados por fecha (local) para ver las ventas por día
+  const getLocalDateKey = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const groupedOrders = React.useMemo(() => {
+    const map = new Map<string, Order[]>();
+    for (const o of filteredOrders) {
+      const key = getLocalDateKey(o.created_at);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(o);
+    }
+    return [...map.entries()].sort(([a], [b]) => b.localeCompare(a));
+  }, [filteredOrders]);
 
   return (
     <div className="space-y-6">
@@ -252,17 +313,34 @@ export default function AdminPedidosPage() {
             </p>
           </div>
         ) : (
-          filteredOrders.map((order) => {
-            const timeFormatted = new Date(order.created_at).toLocaleTimeString('es-PE', {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
+          <div className="space-y-6">
+            {groupedOrders.map(([dateKey, ordersOfDay]) => {
+              const dayTotal = ordersOfDay.reduce(
+                (sum, o) => sum + (o.status === 'cancelado' ? 0 : o.total),
+                0
+              );
+              return (
+                <section key={dateKey} className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl bg-white border border-stone-200 px-4 py-2.5 shadow-xs">
+                    <h2 className="text-sm font-black text-stone-900">
+                      {formatDateSpanish(new Date(dateKey + 'T00:00:00'))}
+                    </h2>
+                    <span className="text-xs text-stone-500">
+                      {ordersOfDay.length} pedido(s) · Total: {formatCurrency(dayTotal)}
+                    </span>
+                  </div>
+                  <div className="space-y-4">
+                    {ordersOfDay.map((order) => {
+                      const timeFormatted = new Date(order.created_at).toLocaleTimeString('es-PE', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
 
-            return (
-              <div
-                key={order.id}
-                className="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs space-y-4 hover:border-orange-200 transition-all"
-              >
+                      return (
+                        <div
+                          key={order.id}
+                          className="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs space-y-4 hover:border-orange-200 transition-all"
+                        >
                 {/* Header: Order info and status */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100">
                   <div className="flex items-center gap-3">
@@ -430,12 +508,25 @@ export default function AdminPedidosPage() {
                         Cancelar
                       </button>
                     )}
+
+                    <button
+                      onClick={() => handleDeleteOrder(order)}
+                      className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-xs font-bold cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Eliminar
+                    </button>
                   </div>
                 </div>
 
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             );
-          })
+          })}
+        </div>
         )}
       </div>
 

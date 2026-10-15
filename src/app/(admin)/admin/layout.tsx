@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -11,6 +11,8 @@ import {
   CalendarDays,
   ClipboardList,
   Share2,
+  Users,
+  Settings,
   LogOut,
   ExternalLink,
   Menu,
@@ -28,12 +30,20 @@ export default function AdminLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = createClient();
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !sessionStorage.getItem('menuliz_admin_auth')) {
+      router.replace('/login');
+    }
+  }, [router]);
+
   const navItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/platos', label: 'Platos', icon: UtensilsCrossed },
     { href: '/admin/menu-hoy', label: 'Menú Hoy', icon: CalendarDays },
     { href: '/admin/pedidos', label: 'Pedidos', icon: ClipboardList },
     { href: '/admin/compartir', label: 'Compartir', icon: Share2 },
+    { href: '/admin/clientes', label: 'Clientes', icon: Users },
+    { href: '/admin/configuracion', label: 'Configuración', icon: Settings },
   ];
 
   const handleLogout = async () => {
@@ -157,7 +167,7 @@ export default function AdminLayout({
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-900 border-t border-stone-800 px-2 py-1 shadow-2xl">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-7 gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;

@@ -191,8 +191,18 @@ export default function AdminPlatosPage() {
     e.preventDefault();
     if (!editingDish || !editingDish.name || !editingDish.price) return;
 
-    const dishToSave: Dish = {
-      id: editingDish.id || `dish-${Date.now()}`,
+    const isUuid = (value?: string) =>
+      !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+    const dishPayload: {
+      name: string;
+      description: string;
+      price: number;
+      category: DishCategory;
+      image_url: string;
+      is_active: boolean;
+      id?: string;
+    } = {
       name: editingDish.name,
       description: editingDish.description || '',
       price: Number(editingDish.price),
@@ -201,22 +211,56 @@ export default function AdminPlatosPage() {
       is_active: editingDish.is_active !== undefined ? editingDish.is_active : true,
     };
 
+    // Solo enviar id si es un UUID válido (edición de un plato existente en Supabase).
+    // Para platos nuevos (o ids locales antiguos como dish-...) eliminamos el id
+    // para que la base de datos genere un UUID y evitar el error 22P02.
+    if (isUuid(editingDish.id)) {
+      dishPayload.id = editingDish.id;
+    } else {
+      delete dishPayload.id;
+    }
+
+    let savedDish: Dish = {
+      id: editingDish.id || `local-${Date.now()}`,
+      name: dishPayload.name,
+      description: dishPayload.description,
+      price: dishPayload.price,
+      category: dishPayload.category,
+      image_url: dishPayload.image_url,
+      is_active: dishPayload.is_active,
+    };
+
     // Try Supabase insert/upsert
     try {
-      await supabase.from('dishes').upsert(dishToSave);
+      const { data, error: saveErr } = await supabase
+        .from('dishes')
+        .upsert(dishPayload)
+        .select()
+        .single();
+
+      if (saveErr) {
+        console.error('Error guardando plato en Supabase:', saveErr);
+        alert(`No se pudo guardar el plato en Supabase.\n${saveErr.message || 'Error'}${saveErr.code ? ` (Código: ${saveErr.code})` : ''}`);
+        return;
+      }
+
+      if (data) {
+        savedDish = data as Dish;
+      }
     } catch (err) {
-      console.warn('Supabase dish upsert failed, updating state', err);
+      console.error('Supabase dish upsert failed, updating state locally', err);
     }
 
     // Update state
     setDishes((prev) => {
-      const idx = prev.findIndex((d) => d.id === dishToSave.id);
+      const targetId = isUuid(editingDish.id) ? editingDish.id! : savedDish.id;
+      const idx = prev.findIndex((d) => d.id === targetId || d.id === editingDish.id);
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = dishToSave;
+        copy[idx] = savedDish;
         return copy;
       }
-      return [dishToSave, ...prev];
+      return [savedDish, ...prev];
     });
 
     setIsModalOpen(false);

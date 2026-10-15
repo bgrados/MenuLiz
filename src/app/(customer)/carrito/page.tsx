@@ -31,9 +31,46 @@ export default function CustomerCartPage() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('yape');
   const [notes, setNotes] = useState('');
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [configuredDeliveryFee, setConfiguredDeliveryFee] = useState(DELIVERY_FEE);
 
-  const deliveryFee = deliveryType === 'delivery' ? DELIVERY_FEE : 0.00;
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettings() {
+      try {
+        const { data } = await createClient().from('restaurant_settings').select('delivery_fee').eq('id', 'main').maybeSingle();
+        if (!cancelled && data?.delivery_fee !== null && data?.delivery_fee !== undefined) {
+          setConfiguredDeliveryFee(Number(data.delivery_fee));
+        }
+      } catch {
+        // keep default
+      }
+
+      // Autocompletar datos del último cliente registrado en este navegador
+      try {
+        const raw = window.localStorage.getItem('menuliz_customer_v1');
+        if (!cancelled && raw) {
+          const saved = JSON.parse(raw);
+          if (saved?.name) setCustomerName(saved.name);
+          if (saved?.phone) setCustomerPhone(saved.phone);
+          if (saved?.address) setDeliveryAddress(saved.address);
+          if (typeof saved?.marketingConsent === 'boolean') setMarketingConsent(saved.marketingConsent);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    loadSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const deliveryFee = deliveryType === 'delivery' ? configuredDeliveryFee : 0.00;
   const total = subtotal + deliveryFee;
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
@@ -58,6 +95,25 @@ export default function CustomerCartPage() {
 
     try {
       const supabase = createClient();
+
+      // Validar stock actual en tiempo real antes de confirmar
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data: stockRows } = await supabase
+        .from('daily_menus')
+        .select('dish_id, stock, is_available')
+        .eq('date', todayStr)
+        .in('dish_id', items.map((i) => i.dish.id));
+
+      const stockMap = new Map((stockRows || []).map((r) => [r.dish_id, r]));
+      for (const item of items) {
+        const row = stockMap.get(item.dish.id);
+        const available = row?.stock ?? 0;
+        if (!row || row.is_available === false || available < item.quantity) {
+          alert(`Lo sentimos, "${item.dish.name}" ya no tiene stock suficiente (${available} disponibles). Ajusta tu pedido.`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
 
       // 1. Prepare Order Object
       const orderPayload = {
@@ -87,22 +143,55 @@ export default function CustomerCartPage() {
 
       // 3. Insert into Supabase (graceful fallback if table not yet migrated)
       try {
-        const { data: createdOrder, error: orderErr } = await supabase
-          .from('orders')
-          .insert(orderPayload)
-          .select('id, order_number')
-          .single();
+        // Usamos una función RPC SECURITY DEFINER para insertar el pedido
+        // sin requerir permisos de SELECT directo al rol anon (evita RLS).
+        const { data: rpcData, error: orderErr } = await supabase.rpc('create_order', {
+          p_customer_name: orderPayload.customer_name,
+          p_customer_phone: orderPayload.customer_phone,
+          p_delivery_type: orderPayload.delivery_type,
+          p_delivery_address: orderPayload.delivery_address,
+          p_delivery_fee: orderPayload.delivery_fee,
+          p_subtotal: orderPayload.subtotal,
+          p_total: orderPayload.total,
+          p_payment_method: orderPayload.payment_method,
+          p_notes: orderPayload.notes,
+          p_status: orderPayload.status,
+        });
+
+        // rpc devuelve un array cuando la función retorna TABLE
+        const createdOrder = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+
+        if (orderErr) {
+          console.error('Error guardando pedido en Supabase:', orderErr);
+          alert('No se pudo guardar el pedido en la base de datos. Revisa las políticas RLS o la consola.');
+        }
 
         if (!orderErr && createdOrder) {
-          orderId = createdOrder.order_number ? `#${createdOrder.order_number}` : createdOrder.id.slice(0, 8);
+          orderId = createdOrder.order_number ? `#${createdOrder.order_number}` : String(createdOrder.id).slice(0, 8);
 
-          // Insert order items
+          // Insert order items (anon tiene permiso de INSERT)
           const itemsWithOrderId = orderItemsPayload.map((it) => ({
             ...it,
             order_id: createdOrder.id,
           }));
 
-          await supabase.from('order_items').insert(itemsWithOrderId);
+          const { error: itemsErr } = await supabase.from('order_items').insert(itemsWithOrderId);
+          if (itemsErr) {
+            console.error('Error insertando items del pedido:', itemsErr);
+          }
+
+          // Base de clientes: upsert por teléfono (SP security definer, anon-safe)
+          try {
+            await supabase.rpc('upsert_customer', {
+              p_phone: orderPayload.customer_phone,
+              p_name: orderPayload.customer_name,
+              p_address: deliveryType === 'delivery' ? deliveryAddress.trim() : null,
+              p_marketing_consent: marketingConsent,
+              p_total: total,
+            });
+          } catch (custErr) {
+            console.warn('No se pudo actualizar la base de clientes:', custErr);
+          }
         }
       } catch (dbErr) {
         console.warn('Database insert failed, proceeding with WhatsApp dispatch:', dbErr);
@@ -119,13 +208,41 @@ export default function CustomerCartPage() {
         // ignore
       }
 
+      // Read owner's configured WhatsApp number, falling back to the env variable
+      let ownerPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '51999999999';
+      try {
+        const { data: settings } = await supabase
+          .from('restaurant_settings')
+          .select('whatsapp_number')
+          .eq('id', 'main')
+          .maybeSingle();
+        if (settings?.whatsapp_number) ownerPhone = settings.whatsapp_number;
+      } catch (cfgErr) {
+        console.warn('No se pudo leer la configuración de WhatsApp:', cfgErr);
+      }
+
       // 5. Generate and Open WhatsApp Message
       const whatsappMsg = generateWhatsAppMessage(
         { ...orderPayload, order_number: parseInt(orderId.replace(/[^0-9]/g, '')) || undefined },
         orderItemsPayload
       );
 
-      openWhatsApp(whatsappMsg);
+      openWhatsApp(whatsappMsg, ownerPhone);
+
+      // Autoguardar datos del cliente en este navegador (autocompletado futuro)
+      try {
+        window.localStorage.setItem(
+          'menuliz_customer_v1',
+          JSON.stringify({
+            name: customerName.trim(),
+            phone: customerPhone.trim(),
+            address: deliveryType === 'delivery' ? deliveryAddress.trim() : '',
+            marketingConsent,
+          })
+        );
+      } catch {
+        // ignore
+      }
 
       // 6. Clear cart and redirect to confirmation
       clearCart();
@@ -380,6 +497,17 @@ export default function CustomerCartPage() {
                 />
               </div>
             </div>
+
+            {/* Consentimiento para comunicaciones */}
+            <label className="flex items-start gap-2 text-xs text-stone-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={(e) => setMarketingConsent(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-orange-500 rounded cursor-pointer"
+              />
+              <span>Quiero recibir el menú del día y promociones por WhatsApp (opcional)</span>
+            </label>
 
             {/* Price breakdown */}
             <div className="pt-3 border-t border-stone-100 space-y-1.5 text-xs">

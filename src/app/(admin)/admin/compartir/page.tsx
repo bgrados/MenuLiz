@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { useDailyMenu } from '@/hooks/use-daily-menu';
-import { RESTAURANT_NAME, MENU_PRICE } from '@/lib/constants';
+import { createClient } from '@/lib/supabase/client';
+import { RESTAURANT_NAME, MENU_PRICE, DEFAULT_WHATSAPP_NUMBER } from '@/lib/constants';
 import { formatDateSpanish, formatCurrency } from '@/lib/utils';
 import {
   Share2,
@@ -23,6 +24,41 @@ export default function AdminCompartirPage() {
   const menuCardRef = useRef<HTMLDivElement>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState(DEFAULT_WHATSAPP_NUMBER);
+  const [restaurantName, setRestaurantName] = useState(RESTAURANT_NAME);
+
+  // Cargar el número de WhatsApp guardado en la configuración del perfil
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('restaurant_settings')
+          .select('whatsapp_number, restaurant_name')
+          .eq('id', 'main')
+          .maybeSingle();
+        if (data?.whatsapp_number) {
+          setWhatsappNumber(data.whatsapp_number);
+        }
+        if (data?.restaurant_name) {
+          setRestaurantName(data.restaurant_name);
+        }
+      } catch (err) {
+        console.warn('No se pudo cargar la configuración de WhatsApp', err);
+      }
+    })();
+  }, []);
+
+  const formatPhoneDisplay = (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 11) {
+      return `+${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
+    }
+    if (digits.length === 9) {
+      return `+51 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    return `+${digits}`;
+  };
 
   const todayFormatted = formatDateSpanish(new Date());
 
@@ -60,7 +96,7 @@ export default function AdminCompartirPage() {
   const handleShareWhatsApp = () => {
     const link = typeof window !== 'undefined' ? `${window.location.origin}/menu` : 'https://menuliz.vercel.app/menu';
 
-    let text = `🍲 *¡MENÚ DEL DÍA EN ${RESTAURANT_NAME.toUpperCase()}!* ✨\n`;
+    let text = `🍲 *¡MENÚ DEL DÍA EN ${restaurantName.toUpperCase()}!* ✨\n`;
     text += `📅 *${todayFormatted}*\n\n`;
     text += `🔥 *Combo Completo a solo S/ ${MENU_PRICE.toFixed(2)}*\n`;
     text += `(1 Entrada + 1 Segundo + 1 Refresco)\n\n`;
@@ -144,7 +180,7 @@ export default function AdminCompartirPage() {
             </div>
 
             <h2 className="text-3xl font-black tracking-tight text-white">
-              Menu<span className="text-amber-200">Liz</span>
+              {restaurantName}
             </h2>
 
             <p className="text-xs text-orange-100 font-semibold">
@@ -214,7 +250,7 @@ export default function AdminCompartirPage() {
             {/* Card Footer */}
             <div className="pt-4 border-t border-stone-100 text-center space-y-1 text-[11px] text-stone-500">
               <p className="font-bold text-stone-800">
-                🛵 Delivery y pedidos al WhatsApp: +51 999 999 999
+                🛵 Delivery y pedidos al WhatsApp: {formatPhoneDisplay(whatsappNumber)}
               </p>
               <p>Pide en línea en: <strong className="text-orange-600">menuliz.vercel.app</strong></p>
             </div>

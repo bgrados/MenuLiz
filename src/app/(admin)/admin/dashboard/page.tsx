@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Order } from '@/types';
 import { STATUS_LABELS, STATUS_COLORS, PAYMENT_LABELS } from '@/lib/constants';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateSpanish } from '@/lib/utils';
 import {
   ShoppingBag,
   TrendingUp,
@@ -118,6 +118,33 @@ export default function AdminDashboardPage() {
 
   const lastFiveOrders = orders.slice(0, 5);
 
+  // Resumen por método de pago (solo pedidos no cancelados)
+  const paymentSummary = (['efectivo', 'yape', 'plin', 'lemon'] as const).map((method) => {
+    const list = orders.filter((o) => o.payment_method === method && o.status !== 'cancelado');
+    return {
+      method,
+      count: list.length,
+      total: list.reduce((sum, o) => sum + Number(o.total || 0), 0),
+    };
+  });
+
+  // Mini-resumen de ventas por día (últimos 7 días presentes en el historial)
+  const dailySales = React.useMemo(() => {
+    const map = new Map<string, { count: number; total: number }>();
+    for (const o of orders) {
+      if (o.status === 'cancelado') continue;
+      const d = new Date(o.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!map.has(key)) map.set(key, { count: 0, total: 0 });
+      const g = map.get(key)!;
+      g.count++;
+      g.total += Number(o.total || 0);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .slice(0, 7);
+  }, [orders]);
+
   return (
     <div className="space-y-8">
       
@@ -198,6 +225,52 @@ export default function AdminDashboardPage() {
 
       </div>
 
+      {/* Mini-resumen de ventas por día */}
+      <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-xs">
+        <div className="p-5 border-b border-stone-200 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-600" /> Ventas por Día
+            </h3>
+            <p className="text-xs text-stone-500">Resumen de ingresos y pedidos por fecha (últimos días)</p>
+          </div>
+          <Link
+            href="/admin/pedidos"
+            className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"
+          >
+            <span>Ver todos</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="divide-y divide-stone-100">
+          {dailySales.length === 0 ? (
+            <div className="py-8 text-center text-xs text-stone-400">
+              Sin ventas registradas todavía.
+            </div>
+          ) : (
+            dailySales.map(([dateKey, data]) => (
+              <div
+                key={dateKey}
+                className="p-4 sm:px-6 flex items-center justify-between gap-3 hover:bg-stone-50/60 transition-colors"
+              >
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-stone-900">
+                    {formatDateSpanish(new Date(dateKey + 'T00:00:00'))}
+                  </p>
+                  <p className="text-xs text-stone-500">
+                    {data.count} pedido(s) · Ticket prom.: {formatCurrency(data.total / (data.count || 1))}
+                  </p>
+                </div>
+                <span className="text-sm font-black text-emerald-600">
+                  {formatCurrency(data.total)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Quick Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
@@ -249,6 +322,25 @@ export default function AdminDashboardPage() {
           <ArrowRight className="w-4 h-4 text-stone-400 group-hover:text-orange-500 transition-colors" />
         </Link>
 
+      </div>
+
+      {/* Resumen de pagos por método */}
+      <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-xs">
+        <div className="p-5 border-b border-stone-200">
+          <h3 className="text-base font-bold text-stone-900">Pagos por Método</h3>
+          <p className="text-xs text-stone-500">Cantidad y monto cobrado por canal de pago (excluye cancelados)</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-stone-100">
+          {paymentSummary.map((p) => (
+            <div key={p.method} className="p-4 space-y-1">
+              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+                {PAYMENT_LABELS[p.method]}
+              </span>
+              <p className="text-xl font-black text-stone-900">{p.count} pedido(s)</p>
+              <p className="text-sm font-bold text-emerald-600">{formatCurrency(p.total)}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Last 5 Orders Table */}

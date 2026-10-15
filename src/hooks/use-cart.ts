@@ -10,6 +10,15 @@ const CART_STORAGE_KEY = 'menuliz_cart_v1';
 let globalCart: CartItem[] = [];
 let listeners: Array<() => void> = [];
 
+if (typeof window !== 'undefined') {
+  try {
+    const saved = localStorage.getItem(CART_STORAGE_KEY);
+    if (saved) globalCart = JSON.parse(saved);
+  } catch {
+    globalCart = [];
+  }
+}
+
 function notifyListeners() {
   listeners.forEach((listener) => listener());
   if (typeof window !== 'undefined') {
@@ -18,26 +27,10 @@ function notifyListeners() {
 }
 
 export function useCart() {
-  const [items, setItems] = useState<CartItem[]>(globalCart);
+  const [items, setItems] = useState<CartItem[]>(() => [...globalCart]);
 
   useEffect(() => {
-    // Initial load from localStorage
-    if (typeof window !== 'undefined' && globalCart.length === 0) {
-      try {
-        const saved = localStorage.getItem(CART_STORAGE_KEY);
-        if (saved) {
-          globalCart = JSON.parse(saved);
-          setItems(globalCart);
-        }
-      } catch (e) {
-        console.error('Failed to parse cart storage', e);
-      }
-    }
-
-    const handleChange = () => {
-      setItems([...globalCart]);
-    };
-
+    const handleChange = () => setItems([...globalCart]);
     listeners.push(handleChange);
     return () => {
       listeners = listeners.filter((l) => l !== handleChange);
