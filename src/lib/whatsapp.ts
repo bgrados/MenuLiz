@@ -37,7 +37,22 @@ const CATEGORY_TAG: Record<string, string> = {
   a_la_carta: 'A la carta',
 };
 
-export function generateWhatsAppMessage(order: Partial<Order>, items: OrderItem[]): string {
+// Íconos de ubicación para el delivery (también "seguros": Unicode 6.0, Emoji_Presentation=Yes)
+const PIN = String.fromCodePoint(0x1f4cd); // 📍
+const CAR = String.fromCodePoint(0x1f697); // 🚗
+
+export interface OrderLocation {
+  lat?: number | null;
+  lng?: number | null;
+  /** Link de Google Maps/Waze que el cliente pega manualmente (respaldo del GPS). */
+  mapsLink?: string | null;
+}
+
+export function generateWhatsAppMessage(
+  order: Partial<Order>,
+  items: OrderItem[],
+  location?: OrderLocation
+): string {
   const dateFormatted = formatDateSpanish(new Date());
 
   let message = `*NUEVO PEDIDO - ${RESTAURANT_NAME}*\n`;
@@ -49,6 +64,22 @@ export function generateWhatsAppMessage(order: Partial<Order>, items: OrderItem[
 
   if (order.delivery_type === 'delivery' && order.delivery_address) {
     message += `*Direccion:* ${order.delivery_address}\n`;
+  }
+
+  // Ayuda al motorizado: links de mapa clicables (solo delivery)
+  if (order.delivery_type === 'delivery') {
+    const hasCoords = typeof location?.lat === 'number' && typeof location?.lng === 'number';
+    if (hasCoords) {
+      const lat = (location?.lat as number).toFixed(6);
+      const lng = (location?.lng as number).toFixed(6);
+      const pin = `${lat},${lng}`;
+      message += `${PIN} Ubicacion: https://www.google.com/maps?q=${pin}\n`;
+      message += `${CAR} Como llegar: https://www.google.com/maps/dir/?api=1&destination=${pin}\n`;
+      message += `${CAR} Waze: https://waze.com/ul?ll=${pin}&navigate=yes\n`;
+    }
+    if (location?.mapsLink && location.mapsLink.trim()) {
+      message += `${PIN} Ubicacion: ${location.mapsLink.trim()}\n`;
+    }
   }
 
   message += `\n*Detalle del Pedido:*\n`;

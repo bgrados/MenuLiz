@@ -30,6 +30,12 @@ export default function CustomerCartPage() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryCoords, setDeliveryCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapsLink, setMapsLink] = useState('');
+  // Dirección para la que se capturó la ubicación (para avisar si el cliente la cambia)
+  const [locationAddress, setLocationAddress] = useState('');
+  const [locStatus, setLocStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [locError, setLocError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('yape');
   const [notes, setNotes] = useState('');
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -58,6 +64,15 @@ export default function CustomerCartPage() {
           if (saved?.phone) setCustomerPhone(saved.phone);
           if (saved?.address) setDeliveryAddress(saved.address);
           if (typeof saved?.marketingConsent === 'boolean') setMarketingConsent(saved.marketingConsent);
+
+          // Ubicación guardada de un pedido anterior (para no volver a compartirla)
+          const hasSavedCoords = typeof saved?.lat === 'number' && typeof saved?.lng === 'number';
+          if (hasSavedCoords) setDeliveryCoords({ lat: saved.lat, lng: saved.lng });
+          if (typeof saved?.mapsLink === 'string') setMapsLink(saved.mapsLink);
+          if (typeof saved?.locationAddress === 'string') setLocationAddress(saved.locationAddress);
+          if (hasSavedCoords || (typeof saved?.mapsLink === 'string' && saved.mapsLink.trim())) {
+            setLocStatus('success');
+          }
         }
       } catch {
         // ignore
@@ -73,6 +88,61 @@ export default function CustomerCartPage() {
 
   const deliveryFee = deliveryType === 'delivery' ? configuredDeliveryFee : 0.00;
   const total = subtotal + deliveryFee;
+
+  const normalizeMapsLink = (value: string) => {
+    const v = value.trim();
+    if (!v) return '';
+    return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  };
+
+  const hasLocation = !!deliveryCoords || mapsLink.trim().length > 0;
+  const locationViewUrl = deliveryCoords
+    ? `https://www.google.com/maps?q=${deliveryCoords.lat},${deliveryCoords.lng}`
+    : normalizeMapsLink(mapsLink);
+  const isLocationStale =
+    hasLocation &&
+    locationAddress.trim().length > 0 &&
+    locationAddress.trim() !== deliveryAddress.trim();
+
+  const handleShareLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocStatus('error');
+      setLocError('Tu dispositivo no permite compartir la ubicación. Puedes pegar tu link de Google Maps abajo.');
+      return;
+    }
+
+    setLocStatus('loading');
+    setLocError('');
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDeliveryCoords({
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        });
+        setMapsLink('');
+        setLocationAddress(deliveryAddress);
+        setLocStatus('success');
+      },
+      (err) => {
+        setLocStatus('error');
+        setLocError(
+          err.code === err.PERMISSION_DENIED
+            ? 'No nos diste permiso de ubicación. Puedes pegar tu link de Google Maps abajo.'
+            : 'No pudimos obtener tu ubicación. Puedes pegar tu link de Google Maps abajo.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  const handleClearLocation = () => {
+    setDeliveryCoords(null);
+    setMapsLink('');
+    setLocationAddress('');
+    setLocStatus('idle');
+    setLocError('');
+  };
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,22 +295,46 @@ export default function CustomerCartPage() {
       // 5. Generate and Open WhatsApp Message
       const whatsappMsg = generateWhatsAppMessage(
         { ...orderPayload, order_number: parseInt(orderId.replace(/[^0-9]/g, '')) || undefined },
-        orderItemsPayload
+        orderItemsPayload,
+        deliveryType === 'delivery'
+          ? {
+              lat: deliveryCoords?.lat ?? null,
+              lng: deliveryCoords?.lng ?? null,
+              mapsLink: mapsLink.trim() ? normalizeMapsLink(mapsLink) : null,
+            }
+          : undefined
       );
 
       openWhatsApp(whatsappMsg, ownerPhone);
 
-      // Autoguardar datos del cliente en este navegador (autocompletado futuro)
+      // Autoguardar datos del cliente en este navegador (autocompletado futuro).
+      // Se conservan dirección y ubicación aunque el pedido sea para recojo,
+      // para que el cliente que pide seguido no tenga que volver a escribirlas.
       try {
-        window.localStorage.setItem(
-          'menuliz_customer_v1',
-          JSON.stringify({
-            name: customerName.trim(),
-            phone: customerPhone.trim(),
-            address: deliveryType === 'delivery' ? deliveryAddress.trim() : '',
-            marketingConsent,
-          })
-        );
+        let prev: Record<string, unknown> = {};
+        try {
+          const rawPrev = window.localStorage.getItem('menuliz_customer_v1');
+          prev = rawPrev ? JSON.parse(rawPrev) : {};
+        } catch {
+          prev = {};
+        }
+
+        const saved: Record<string, unknown> = {
+          ...prev,
+          name: customerName.trim(),
+          phone: customerPhone.trim(),
+          marketingConsent,
+        };
+
+        if (deliveryType === 'delivery') {
+          saved.address = deliveryAddress.trim();
+          saved.lat = deliveryCoords?.lat;
+          saved.lng = deliveryCoords?.lng;
+          saved.mapsLink = mapsLink.trim() ? normalizeMapsLink(mapsLink) : '';
+          saved.locationAddress = locationAddress.trim() || deliveryAddress.trim();
+        }
+
+        window.localStorage.setItem('menuliz_customer_v1', JSON.stringify(saved));
       } catch {
         // ignore
       }
@@ -445,20 +539,108 @@ export default function CustomerCartPage() {
               </div>
             </div>
 
-            {/* Address (Delivery only) */}
+            {/* Address + Ubicación (Delivery only) */}
             {deliveryType === 'delivery' && (
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Dirección de Entrega *</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Calle, número, piso o referencia..."
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 shadow-xs"
-                  />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">Dirección de Entrega *</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Calle, número, piso o referencia..."
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 shadow-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Ubicación para el motorizado */}
+                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3 space-y-2">
+                  <div>
+                    <p className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                      Ubicación para el motorizado (opcional)
+                    </p>
+                    <p className="text-[10px] text-stone-400 mt-0.5">
+                      Envía un pin para que tu pedido llegue más rápido y sin confusiones.
+                    </p>
+                  </div>
+
+                  {hasLocation ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Ubicación lista
+                      </span>
+                      {locationViewUrl && (
+                        <a
+                          href={locationViewUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] font-bold text-orange-600 underline"
+                        >
+                          Ver en mapa
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleShareLocation}
+                        disabled={locStatus === 'loading'}
+                        className="text-[11px] font-bold text-stone-600 underline cursor-pointer disabled:opacity-50"
+                      >
+                        {locStatus === 'loading' ? 'Actualizando…' : 'Actualizar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearLocation}
+                        className="text-[11px] font-bold text-red-500 underline cursor-pointer"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleShareLocation}
+                      disabled={locStatus === 'loading'}
+                      className="w-full py-2 px-3 rounded-xl border border-orange-300 bg-white text-orange-700 text-xs font-bold hover:bg-orange-50 inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      {locStatus === 'loading' ? 'Obteniendo ubicación…' : 'Usar mi ubicación actual'}
+                    </button>
+                  )}
+
+                  {isLocationStale && (
+                    <p className="text-[10px] font-semibold text-amber-600">
+                      Cambiaste la dirección. Toca “Actualizar” para que el pin coincida con la nueva.
+                    </p>
+                  )}
+
+                  {locStatus === 'error' && locError && (
+                    <p className="text-[10px] font-semibold text-amber-700">{locError}</p>
+                  )}
+
+                  {!deliveryCoords && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-500 mb-1">
+                        ¿No funciona? Pega tu link de Google Maps (opcional)
+                      </label>
+                      <input
+                        type="url"
+                        inputMode="url"
+                        placeholder="https://maps.app.goo.gl/..."
+                        value={mapsLink}
+                        onChange={(e) => {
+                          setMapsLink(e.target.value);
+                          setLocationAddress(deliveryAddress);
+                          if (locStatus === 'error') setLocStatus('idle');
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 shadow-xs"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
