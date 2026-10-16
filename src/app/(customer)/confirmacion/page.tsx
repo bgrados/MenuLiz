@@ -3,8 +3,10 @@
 import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, MessageCircle, Home, Sparkles, Clock, MapPin, Store } from 'lucide-react';
-import { RESTAURANT_NAME, DEFAULT_WHATSAPP_NUMBER } from '@/lib/constants';
+import { CheckCircle2, MessageCircle, Home, Sparkles, Clock, MapPin, Store, Paperclip } from 'lucide-react';
+import { RESTAURANT_NAME, DEFAULT_WHATSAPP_NUMBER, PAYMENT_LABELS } from '@/lib/constants';
+import { requiresPaymentReceipt } from '@/lib/receipts';
+import PaymentReceiptUpload from '@/components/PaymentReceiptUpload';
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
@@ -12,6 +14,8 @@ function ConfirmationContent() {
   const name = searchParams.get('name') || 'Estimado cliente';
   const total = searchParams.get('total') || '14.00';
   const type = searchParams.get('type') || 'delivery';
+  const orderUuid = searchParams.get('oid') || '';
+  const paymentMethod = searchParams.get('pay') || '';
 
   return (
     <div className="max-w-md mx-auto py-10 text-center space-y-6">
@@ -70,6 +74,26 @@ function ConfirmationContent() {
           El tiempo estimado de preparación es de <strong className="font-bold">20 a 35 minutos</strong>. Te confirmaremos por WhatsApp en cuanto tu pedido esté en camino o listo para recoger.
         </p>
       </div>
+
+      {/* Constancia de pago (Yape / Plin / Lemon) */}
+      {orderUuid && requiresPaymentReceipt(paymentMethod) && (
+        <div className="bg-white rounded-3xl border border-orange-200 p-5 shadow-xs text-left space-y-3">
+          <div className="flex items-start gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+              <Paperclip className="w-4 h-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-stone-900">
+                ¿Ya pagaste con {PAYMENT_LABELS[paymentMethod as keyof typeof PAYMENT_LABELS] || 'Yape'}?
+              </h3>
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                Sube tu constancia y quedará guardada en tu pedido. Así la dueña la verifica al toque.
+              </p>
+            </div>
+          </div>
+          <PaymentReceiptUpload orderId={orderUuid} label="Subir mi constancia de pago" />
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="pt-2 flex flex-col gap-2.5">

@@ -211,6 +211,7 @@ export default function CustomerCartPage() {
       }));
 
       let orderId = `PED-${Date.now().toString().slice(-6)}`;
+      let createdOrderUuid = '';
 
       // 3. Insert into Supabase (graceful fallback if table not yet migrated)
       try {
@@ -239,6 +240,7 @@ export default function CustomerCartPage() {
 
         if (!orderErr && createdOrder) {
           orderId = createdOrder.order_number ? `#${createdOrder.order_number}` : String(createdOrder.id).slice(0, 8);
+          createdOrderUuid = createdOrder.id;
 
           // Insert order items (anon tiene permiso de INSERT)
           const itemsWithOrderId = orderItemsPayload.map((it) => ({
@@ -341,7 +343,14 @@ export default function CustomerCartPage() {
 
       // 6. Clear cart and redirect to confirmation
       clearCart();
-      router.push(`/confirmacion?orderId=${encodeURIComponent(orderId)}&name=${encodeURIComponent(customerName)}&total=${total.toFixed(2)}&type=${deliveryType}`);
+      router.push(
+        `/confirmacion?orderId=${encodeURIComponent(orderId)}` +
+          `&name=${encodeURIComponent(customerName)}` +
+          `&total=${total.toFixed(2)}` +
+          `&type=${deliveryType}` +
+          (createdOrderUuid ? `&oid=${encodeURIComponent(createdOrderUuid)}` : '') +
+          `&pay=${paymentMethod}`
+      );
     } catch (err) {
       console.error('Error submitting order:', err);
       alert('Ocurrió un error al procesar el pedido. Por favor intenta nuevamente.');

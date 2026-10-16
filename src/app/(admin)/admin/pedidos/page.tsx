@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client';
 import { Order, OrderStatus } from '@/types';
 import { STATUS_LABELS, STATUS_COLORS, PAYMENT_LABELS } from '@/lib/constants';
 import { formatCurrency, formatDateSpanish } from '@/lib/utils';
+import { getPaymentReceiptSignedUrl, requiresPaymentReceipt } from '@/lib/receipts';
+import PaymentReceiptUpload from '@/components/PaymentReceiptUpload';
 import {
   ClipboardList,
   Phone,
@@ -19,6 +21,7 @@ import {
   X,
   Radio,
   Trash2,
+  Paperclip,
 } from 'lucide-react';
 
 export default function AdminPedidosPage() {
@@ -210,6 +213,22 @@ export default function AdminPedidosPage() {
       console.error('Error eliminando pedido:', err);
       alert('Ocurrió un error al eliminar el pedido.');
     }
+  };
+
+  const handleViewReceipt = async (order: Order) => {
+    if (!order.payment_receipt_path) return;
+    const url = await getPaymentReceiptSignedUrl(order.payment_receipt_path);
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      alert('No se pudo abrir la constancia. Vuelve a intentarlo en unos segundos.');
+    }
+  };
+
+  const handleReceiptUploaded = (orderId: string, path: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, payment_receipt_path: path } : o))
+    );
   };
 
   const filteredOrders = orders.filter((o) => {
@@ -413,6 +432,31 @@ export default function AdminPedidosPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Constancia de pago (Yape / Plin / Lemon) */}
+                {(requiresPaymentReceipt(order.payment_method) || order.payment_receipt_path) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {order.payment_receipt_path ? (
+                      <button
+                        onClick={() => handleViewReceipt(order)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold cursor-pointer"
+                      >
+                        <Paperclip className="w-3.5 h-3.5" />
+                        <span>Ver constancia de pago</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                        Constancia de pago:
+                      </span>
+                    )}
+                    <PaymentReceiptUpload
+                      compact
+                      orderId={order.id}
+                      onUploaded={(path) => handleReceiptUploaded(order.id, path)}
+                      label={order.payment_receipt_path ? 'Reemplazar' : 'Adjuntar'}
+                    />
+                  </div>
+                )}
 
                 {/* Order Items */}
                 {order.order_items && order.order_items.length > 0 && (
