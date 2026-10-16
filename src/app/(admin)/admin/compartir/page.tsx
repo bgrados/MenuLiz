@@ -118,6 +118,14 @@ export default function AdminCompartirPage() {
       text += `• ${r.name}\n`;
     });
 
+    const aLaCartaDisponibles = grouped.a_la_carta.filter((c) => c.is_available);
+    if (aLaCartaDisponibles.length > 0) {
+      text += `\n🍽️ *A LA CARTA:*\n`;
+      aLaCartaDisponibles.forEach((c) => {
+        text += `• ${c.name} — S/ ${c.price.toFixed(2)}\n`;
+      });
+    }
+
     text += `\n🚚 *Pide tu almuerzo online aquí:* 👇\n${link}\n\n`;
     text += `_¡Te esperamos con el mejor sabor casero!_ 😋`;
 
@@ -249,6 +257,23 @@ export default function AdminCompartirPage() {
                 ))}
               </ul>
             </div>
+
+            {/* A la Carta */}
+            {grouped.a_la_carta.filter((c) => c.is_available).length > 0 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-black uppercase tracking-wider text-orange-600 border-b border-orange-100 pb-1 flex items-center gap-1.5">
+                  <span>🍽️ A la Carta:</span>
+                </h4>
+                <ul className="space-y-1 text-stone-700">
+                  {grouped.a_la_carta.filter((c) => c.is_available).map((c) => (
+                    <li key={c.id} className="flex justify-between font-semibold">
+                      <span>• {c.name}</span>
+                      <span className="text-stone-400 font-normal">{formatCurrency(c.price)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Card Footer */}
             <div className="pt-4 border-t border-stone-100 text-center space-y-1 text-[11px] text-stone-500">
