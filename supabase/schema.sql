@@ -223,25 +223,25 @@ CREATE POLICY "Admins suben fotos de platos"
 INSERT INTO public.dishes (id, name, description, price, category, image_url, is_active)
 VALUES
   -- Entradas
-  ('d0000001-0000-0000-0000-000000000001', 'Sopa Criolla Calientita', 'Sustanciosa sopa casera con carne de res molida, cabello de ángel, leche y huevo pochado.', 6.00, 'entrada', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000001-0000-0000-0000-000000000002', 'Causa Rellena de Pollo', 'Masa suave de papa amarilla al limón y ají amarillo con pollo y palta fresca.', 6.00, 'entrada', 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000001-0000-0000-0000-000000000003', 'Tequeños con Guacamole (4 und)', 'Crocantes wantanes rellenos de queso fresco con salsa de palta criolla.', 6.00, 'entrada', 'https://images.unsplash.com/photo-1582169505937-b9992bd01ed9?auto=format&fit=crop&w=800&q=80', true),
+  ('d0000001-0000-0000-0000-000000000001', 'Sopa Criolla Calientita', 'Sustanciosa sopa casera con carne de res molida, cabello de ángel, leche y huevo pochado.', 6.00, 'entrada', '/images/sopa-criolla.webp', true),
+  ('d0000001-0000-0000-0000-000000000002', 'Causa Rellena de Pollo', 'Masa suave de papa amarilla al limón y ají amarillo con pollo y palta fresca.', 6.00, 'entrada', '/images/causa-rellena.webp', true),
+  ('d0000001-0000-0000-0000-000000000003', 'Tequeños con Guacamole (4 und)', 'Crocantes wantanes rellenos de queso fresco con salsa de palta criolla.', 6.00, 'entrada', '/images/tequenos-palta.jpg', true),
   
   -- Segundos
-  ('d0000002-0000-0000-0000-000000000001', 'Lomo Saltado al Wok', 'Trozos de lomo fino salteados con cebolla, tomate, ají amarillo, papas fritas y arroz.', 11.00, 'segundo', 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000002-0000-0000-0000-000000000002', 'Ají de Gallina Casero', 'Pechuga deshilachada en crema de ají amarillo con papas nativas, huevo y aceituna.', 10.00, 'segundo', 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000002-0000-0000-0000-000000000003', 'Arroz con Pollo & Huancaína', 'Arroz graneado al culantro con presa dorada y crema huancaína tradicional.', 10.00, 'segundo', 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000002-0000-0000-0000-000000000004', 'Seco de Res con Frejoles', 'Carne macerada en chicha de jora y culantro con frejoles cremosos y sarsa criolla.', 11.00, 'segundo', 'https://images.unsplash.com/photo-1547496502-affa22d38842?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000002-0000-0000-0000-000000000005', 'Milanesa de Pollo Crujiente', 'Pechuga apanada dorada con papas fritas, arroz blanco y ensalada fresca.', 10.00, 'segundo', 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=80', true),
+  ('d0000002-0000-0000-0000-000000000001', 'Lomo Saltado al Wok', 'Trozos de lomo fino salteados con cebolla, tomate, ají amarillo, papas fritas y arroz.', 11.00, 'segundo', '/images/Lomo-Saltado.webp', true),
+  ('d0000002-0000-0000-0000-000000000002', 'Ají de Gallina Casero', 'Pechuga deshilachada en crema de ají amarillo con papas nativas, huevo y aceituna.', 10.00, 'segundo', '/images/aji-de-gallina.webp', true),
+  ('d0000002-0000-0000-0000-000000000003', 'Arroz con Pollo & Huancaína', 'Arroz graneado al culantro con presa dorada y crema huancaína tradicional.', 10.00, 'segundo', '/images/arrozconpollo.webp', true),
+  ('d0000002-0000-0000-0000-000000000004', 'Seco de Res con Frejoles', 'Carne macerada en chicha de jora y culantro con frejoles cremosos y sarsa criolla.', 11.00, 'segundo', '/images/seco-de-carne-con-frejoles.webp', true),
+  ('d0000002-0000-0000-0000-000000000005', 'Milanesa de Pollo Crujiente', 'Pechuga apanada dorada con papas fritas, arroz blanco y ensalada fresca.', 10.00, 'segundo', '/images/milanesa-de-pollo.webp', true),
 
   -- Refrescos
-  ('d0000003-0000-0000-0000-000000000001', 'Chicha Morada Natural (Vaso)', 'Preparada artesanalmente con maíz morado, piña, manzana y canela.', 3.00, 'refresco', 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000003-0000-0000-0000-000000000002', 'Refresco de Maracuyá (Vaso)', 'Jugo natural de pura pulpa de maracuyá bien frío.', 3.00, 'refresco', 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=800&q=80', true),
+  ('d0000003-0000-0000-0000-000000000001', 'Chicha Morada Natural (Vaso)', 'Preparada artesanalmente con maíz morado, piña, manzana y canela.', 3.00, 'refresco', '/images/chichamorada.webp', true),
+  ('d0000003-0000-0000-0000-000000000002', 'Refresco de Maracuyá (Vaso)', 'Jugo natural de pura pulpa de maracuyá bien frío.', 3.00, 'refresco', '/images/maracuya.webp', true),
 
   -- A la Carta
-  ('d0000004-0000-0000-0000-000000000001', 'Bistec a lo Pobre Especial', 'Bistec jugoso con plátano frito, dos huevos montados, papas fritas y arroz.', 24.00, 'a_la_carta', 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000004-0000-0000-0000-000000000002', 'Ceviche Mixto Carretillero', 'Pescado fresco y mariscos marinados al limón norteño con camote, choclo y canchita.', 26.00, 'a_la_carta', 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?auto=format&fit=crop&w=800&q=80', true),
-  ('d0000004-0000-0000-0000-000000000003', 'Tallarines Verdes con Churrasco', 'Fideos bañados en crema de espinaca, albahaca y queso con churrasco a la plancha.', 22.00, 'a_la_carta', 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80', true)
+  ('d0000004-0000-0000-0000-000000000001', 'Bistec a lo Pobre Especial', 'Bistec jugoso con plátano frito, dos huevos montados, papas fritas y arroz.', 24.00, 'a_la_carta', '/images/bisteckpobre.webp', true),
+  ('d0000004-0000-0000-0000-000000000002', 'Ceviche Mixto Carretillero', 'Pescado fresco y mariscos marinados al limón norteño con camote, choclo y canchita.', 26.00, 'a_la_carta', '/images/placeholder-dish.svg', true),
+  ('d0000004-0000-0000-0000-000000000003', 'Tallarines Verdes con Churrasco', 'Fideos bañados en crema de espinaca, albahaca y queso con churrasco a la plancha.', 22.00, 'a_la_carta', '/images/tallarinverdebisteck.webp', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Asignar los platos de hoy al menú diario

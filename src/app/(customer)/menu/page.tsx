@@ -7,6 +7,7 @@ import { useCart } from '@/hooks/use-cart';
 import { DailyDishItem } from '@/types';
 import { MENU_PRICE, CATEGORY_LABELS } from '@/lib/constants';
 import { formatDateSpanish, formatCurrency } from '@/lib/utils';
+import { getDishImage } from '@/lib/dish-images';
 import { Sparkles, Plus, Minus, ShoppingBag, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -49,7 +50,7 @@ export default function CustomerMenuPage() {
         {/* Dish Photo */}
         <div className="relative w-full sm:w-28 h-36 sm:h-28 rounded-xl overflow-hidden shrink-0 bg-stone-100">
           <img
-            src={dish.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'}
+            src={getDishImage(dish.name, dish.image_url)}
             alt={dish.name}
             className={`w-full h-full object-cover ${isOutOfStock ? 'grayscale' : ''}`}
             loading="lazy"

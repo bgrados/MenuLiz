@@ -7,6 +7,7 @@ import { useCart } from '@/hooks/use-cart';
 import { DeliveryType, PaymentMethod, OrderItem } from '@/types';
 import { DELIVERY_FEE, PAYMENT_LABELS } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
+import { getDishImage } from '@/lib/dish-images';
 import { generateWhatsAppMessage, openWhatsApp } from '@/lib/whatsapp';
 import { createClient } from '@/lib/supabase/client';
 import { Trash2, Plus, Minus, ArrowLeft, Send, MapPin, Store, CreditCard, User, Phone, FileText, CheckCircle2 } from 'lucide-react';
@@ -314,7 +315,7 @@ export default function CustomerCartPage() {
             {items.map((item) => (
               <div key={item.id} className="p-4 flex items-center justify-between gap-3">
                 <img
-                  src={item.dish.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'}
+                  src={getDishImage(item.dish.name, item.dish.image_url)}
                   alt={item.dish.name}
                   className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-stone-200"
                 />

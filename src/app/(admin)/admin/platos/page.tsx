@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Dish, DishCategory } from '@/types';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
+import { getDishImage, getLocalDishImage, DEFAULT_DISH_IMAGE } from '@/lib/dish-images';
 import {
   UtensilsCrossed,
   Plus,
@@ -207,7 +208,10 @@ export default function AdminPlatosPage() {
       description: editingDish.description || '',
       price: Number(editingDish.price),
       category: (editingDish.category as DishCategory) || 'segundo',
-      image_url: editingDish.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+      image_url:
+        editingDish.image_url ||
+        getLocalDishImage(editingDish.name || '') ||
+        DEFAULT_DISH_IMAGE,
       is_active: editingDish.is_active !== undefined ? editingDish.is_active : true,
     };
 
@@ -321,7 +325,7 @@ export default function AdminPlatosPage() {
               category: 'segundo',
               is_active: true,
               price: 10,
-              image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+              image_url: '',
             });
             setIsModalOpen(true);
           }}
@@ -390,7 +394,7 @@ export default function AdminPlatosPage() {
               {/* Photo */}
               <div className="relative h-44 w-full bg-stone-100 overflow-hidden">
                 <img
-                  src={dish.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'}
+                  src={getDishImage(dish.name, dish.image_url)}
                   alt={dish.name}
                   className={`w-full h-full object-cover ${dish.is_active ? '' : 'grayscale'}`}
                   loading="lazy"
