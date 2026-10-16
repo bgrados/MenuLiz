@@ -47,7 +47,6 @@ export default function AdminMenuHoyPage() {
           .from('dishes')
           .select('*')
           .eq('is_active', true)
-          .neq('category', 'a_la_carta')
           .order('name');
 
         let loadedDishes: Dish[] = [];
@@ -91,10 +90,13 @@ export default function AdminMenuHoyPage() {
             initialStockMap[row.dish_id] = Number(row.initial_stock ?? row.stock);
           });
         } else {
-          // Preselect all dishes by default if no configuration yet
+          // Preselect all dishes by default if no configuration yet.
+          // Los platos "a la carta" arrancan desmarcados: se activan a propósito
+          // para el día (evita publicarlos sin querer con stock por defecto).
           loadedDishes.forEach((d) => {
-            initialSelection[d.id] = { selected: true, stock: 15 };
-            initialStockMap[d.id] = 15;
+            const preselect = d.category !== 'a_la_carta';
+            initialSelection[d.id] = { selected: preselect, stock: 15 };
+            if (preselect) initialStockMap[d.id] = 15;
           });
         }
 
@@ -238,10 +240,12 @@ export default function AdminMenuHoyPage() {
   const entradas = dishes.filter((d) => d.category === 'entrada');
   const segundos = dishes.filter((d) => d.category === 'segundo');
   const refrescos = dishes.filter((d) => d.category === 'refresco');
+  const aLaCarta = dishes.filter((d) => d.category === 'a_la_carta');
 
   const selectedEntradas = entradas.filter((d) => selection[d.id]?.selected);
   const selectedSegundos = segundos.filter((d) => selection[d.id]?.selected);
   const selectedRefrescos = refrescos.filter((d) => selection[d.id]?.selected);
+  const selectedALaCarta = aLaCarta.filter((d) => selection[d.id]?.selected);
 
   return (
     <div className="space-y-6">
@@ -303,7 +307,7 @@ export default function AdminMenuHoyPage() {
             </div>
             <div className="text-right shrink-0">
               <span className="font-mono text-xs font-black text-orange-600 block">
-                {selectedEntradas.length}E / {selectedSegundos.length}S / {selectedRefrescos.length}R
+                {selectedEntradas.length}E / {selectedSegundos.length}S / {selectedRefrescos.length}R / {selectedALaCarta.length}C
               </span>
             </div>
           </div>
@@ -464,6 +468,64 @@ export default function AdminMenuHoyPage() {
             </div>
           </div>
 
+          {/* Group: A la Carta */}
+          <div className="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs space-y-3">
+            <h3 className="text-sm font-black text-stone-900 uppercase tracking-wider flex items-center justify-between">
+              <span>{CATEGORY_LABELS.a_la_carta}</span>
+              <span className="text-xs text-stone-400 font-bold lowercase">
+                {selectedALaCarta.length} seleccionados
+              </span>
+            </h3>
+
+            {aLaCarta.length === 0 ? (
+              <p className="text-xs text-stone-400 italic">
+                No tienes platos a la carta activos. Agrégalos en la sección Platos.
+              </p>
+            ) : (
+              <div className="divide-y divide-stone-100">
+                {aLaCarta.map((dish) => {
+                  const isSelected = selection[dish.id]?.selected ?? false;
+                  const stock = selection[dish.id]?.stock ?? 15;
+
+                  return (
+                    <div key={dish.id} className="py-3 flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0 select-none">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleDish(dish.id)}
+                          className="w-4 h-4 accent-orange-500 rounded cursor-pointer shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <h4 className={`text-xs sm:text-sm font-bold truncate ${isSelected ? 'text-stone-900' : 'text-stone-400'}`}>
+                            {dish.name}
+                          </h4>
+                          <span className="text-[11px] text-stone-400">{formatCurrency(dish.price)}</span>
+                        </div>
+                      </label>
+
+                      {isSelected && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[11px] text-stone-400 font-bold">Stock:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={stock}
+                            onChange={(e) => handleStockChange(dish.id, parseInt(e.target.value) || 0)}
+                            className="w-16 px-2 py-1 rounded-lg border border-stone-200 text-xs font-bold text-center bg-stone-50"
+                          />
+                          <span className="text-[10px] text-stone-500 font-bold whitespace-nowrap">
+                            Vendido: {Math.max(0, (initialStock[dish.id] ?? stock) - stock)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Right Column: Live Customer Preview */}
@@ -529,6 +591,23 @@ export default function AdminMenuHoyPage() {
                   <p className="text-stone-400 italic text-[11px]">Ninguno seleccionado</p>
                 ) : (
                   selectedRefrescos.map((d) => (
+                    <div key={d.id} className="p-2 rounded-xl bg-white border border-stone-200 flex justify-between items-center shadow-2xs">
+                      <span className="font-semibold text-stone-800 truncate">{d.name}</span>
+                      <span className="text-[10px] font-bold text-stone-400">
+                        Stock: {selection[d.id]?.stock} · Vendido: {Math.max(0, (initialStock[d.id] ?? selection[d.id]?.stock ?? 0) - (selection[d.id]?.stock ?? 0))}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* A la Carta preview */}
+              <div className="space-y-1.5">
+                <span className="font-bold text-stone-800 block text-[11px]">📋 A la Carta:</span>
+                {selectedALaCarta.length === 0 ? (
+                  <p className="text-stone-400 italic text-[11px]">Ninguno seleccionado</p>
+                ) : (
+                  selectedALaCarta.map((d) => (
                     <div key={d.id} className="p-2 rounded-xl bg-white border border-stone-200 flex justify-between items-center shadow-2xs">
                       <span className="font-semibold text-stone-800 truncate">{d.name}</span>
                       <span className="text-[10px] font-bold text-stone-400">
