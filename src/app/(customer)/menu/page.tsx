@@ -12,7 +12,7 @@ import { Sparkles, Plus, Minus, ShoppingBag, AlertCircle, ArrowRight, CheckCircl
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CustomerMenuPage() {
-  const { grouped, loading } = useDailyMenu();
+  const { items, grouped, loading } = useDailyMenu();
   const { items: cartItems, addItem, removeItem, updateQuantity, fullCombosCount, comboTotal, leftoverTotal, subtotal, totalItemCount } = useCart();
 
   const getItemQuantity = (id: string) => {
@@ -159,6 +159,22 @@ export default function CustomerMenuPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-16 px-6 text-center space-y-3 bg-white rounded-3xl border border-stone-200 max-w-md mx-auto">
+          <AlertCircle className="w-12 h-12 text-stone-300 mx-auto" />
+          <h3 className="text-base font-bold text-stone-800">
+            Hoy aún no hay menú disponible
+          </h3>
+          <p className="text-xs text-stone-500">
+            El restaurante todavía no ha publicado el menú del día. Vuelve a intentarlo en un momento o revisa los platos a la carta.
+          </p>
+          <Link
+            href="/carta"
+            className="inline-flex px-4 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 shadow-xs"
+          >
+            Ver Platos a la Carta
+          </Link>
         </div>
       ) : (
         <div className="space-y-8">

@@ -85,46 +85,34 @@ export function useDailyMenu() {
         `)
         .eq('date', todayStr);
 
-      if (!fetchErr && data && data.length > 0) {
-        const mapped: DailyDishItem[] = data
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((row: any) => row.dishes && row.dishes.is_active)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((row: any) => ({
-            id: row.dishes.id,
-            daily_menu_id: row.id,
-            name: row.dishes.name,
-            description: row.dishes.description,
-            price: Number(row.dishes.price),
-            category: row.dishes.category as DishCategory,
-            image_url: row.dishes.image_url,
-            stock: row.stock,
-            is_available: row.is_available && row.stock > 0,
-          }));
-
-        setItems(mapped);
+      if (fetchErr) {
+        // Error real de red/servidor: conservamos el seed local para no dejar
+        // la pantalla vacía por un fallo temporal de conexión.
+        setError(fetchErr.message);
         return;
       }
 
-      // If no daily menu row, fall back to all active dishes (stock 10)
-      const { data: dishesData, error: dishesErr } = await supabase
-        .from('dishes')
-        .select('*')
-        .eq('is_active', true);
-
-      if (!dishesErr && dishesData && dishesData.length > 0) {
-        const mappedDishes: DailyDishItem[] = dishesData.map((d) => ({
-          id: d.id,
-          name: d.name,
-          description: d.description,
-          price: Number(d.price),
-          category: d.category as DishCategory,
-          image_url: d.image_url,
-          stock: 10,
-          is_available: true,
+      // El menú del día guardado por el admin es la ÚNICA fuente de verdad.
+      // Si no hay ninguna fila para hoy, significa que NO hay platos publicados
+      // (el admin deshabilitó todo), así que no se muestra nada y no se puede pedir.
+      // Antes se caía a "todos los platos activos" y por eso se podía pedir igual.
+      const mapped: DailyDishItem[] = (data || [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((row: any) => row.dishes && row.dishes.is_active)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((row: any) => ({
+          id: row.dishes.id,
+          daily_menu_id: row.id,
+          name: row.dishes.name,
+          description: row.dishes.description,
+          price: Number(row.dishes.price),
+          category: row.dishes.category as DishCategory,
+          image_url: row.dishes.image_url,
+          stock: row.stock,
+          is_available: row.is_available && row.stock > 0,
         }));
-        setItems(mappedDishes);
-      }
+
+      setItems(mapped);
     } catch (err: unknown) {
       console.warn('Error fetching daily menu from Supabase, using local seed:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar el menú');

@@ -89,16 +89,10 @@ export default function AdminMenuHoyPage() {
             };
             initialStockMap[row.dish_id] = Number(row.initial_stock ?? row.stock);
           });
-        } else {
-          // Preselect all dishes by default if no configuration yet.
-          // Los platos "a la carta" arrancan desmarcados: se activan a propósito
-          // para el día (evita publicarlos sin querer con stock por defecto).
-          loadedDishes.forEach((d) => {
-            const preselect = d.category !== 'a_la_carta';
-            initialSelection[d.id] = { selected: preselect, stock: 15 };
-            if (preselect) initialStockMap[d.id] = 15;
-          });
         }
+        // Si el día no tiene platos guardados, no se marca ninguno:
+        // "lo guardado = lo que ve el cliente". Así, deshabilitar todo
+        // se refleja fielmente y el menú queda cerrado (sin pedidos).
 
         setSelection(initialSelection);
         setInitialStock(initialStockMap);
@@ -130,6 +124,16 @@ export default function AdminMenuHoyPage() {
         stock: Math.max(0, val),
       },
     }));
+  };
+
+  const handleMarkAll = (selected: boolean) => {
+    setSelection((prev) => {
+      const next = { ...prev };
+      dishes.forEach((d) => {
+        next[d.id] = { selected, stock: next[d.id]?.stock ?? 15 };
+      });
+      return next;
+    });
   };
 
   const handleSaveMenu = async () => {
@@ -247,6 +251,12 @@ export default function AdminMenuHoyPage() {
   const selectedRefrescos = refrescos.filter((d) => selection[d.id]?.selected);
   const selectedALaCarta = aLaCarta.filter((d) => selection[d.id]?.selected);
 
+  const totalSelected =
+    selectedEntradas.length +
+    selectedSegundos.length +
+    selectedRefrescos.length +
+    selectedALaCarta.length;
+
   return (
     <div className="space-y-6">
       
@@ -310,6 +320,36 @@ export default function AdminMenuHoyPage() {
                 {selectedEntradas.length}E / {selectedSegundos.length}S / {selectedRefrescos.length}R / {selectedALaCarta.length}C
               </span>
             </div>
+          </div>
+
+          {/* Acciones rápidas y estado del menú */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleMarkAll(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-stone-200 hover:border-orange-300 text-stone-700 text-xs font-bold shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-orange-500" />
+              Marcar todos
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMarkAll(false)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-stone-200 hover:border-red-300 text-stone-700 text-xs font-bold shadow-xs cursor-pointer"
+            >
+              Quitar todos
+            </button>
+            <span
+              className={`ml-auto text-[11px] font-black px-3 py-1.5 rounded-xl ${
+                totalSelected > 0
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-red-100 text-red-700'
+              }`}
+            >
+              {totalSelected > 0
+                ? `${totalSelected} plato(s) seleccionado(s)`
+                : 'Sin platos: al guardar, el menú quedará cerrado'}
+            </span>
           </div>
 
           {/* Group: Entradas */}
