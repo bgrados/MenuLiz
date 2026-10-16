@@ -79,21 +79,44 @@ export default function RootLayout({
         >
           <div
             style={{
-              width: 88,
-              height: 88,
-              borderRadius: 26,
+              width: 96,
+              height: 96,
+              borderRadius: 28,
               background: '#ffffff',
-              color: '#f97316',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: 36,
-              letterSpacing: '-1px',
               boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
             }}
           >
-            SN
+            {/* Logo: cubiertos cruzados (negro) + iniciales SN */}
+            <svg width="66" height="66" viewBox="0 0 64 64" aria-hidden="true">
+              <g
+                transform="translate(18.2 7.5) scale(1.15)"
+                fill="none"
+                stroke="#1c1917"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8" />
+                <path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7" />
+                <path d="m2.1 21.8 6.4-6.3" />
+                <path d="m19 5-7 7" />
+              </g>
+              <text
+                x="32"
+                y="49"
+                textAnchor="middle"
+                fontFamily="'Segoe UI', system-ui, -apple-system, Arial, sans-serif"
+                fontSize="15"
+                fontWeight="900"
+                letterSpacing="0.5"
+                fill="#f97316"
+              >
+                SN
+              </text>
+            </svg>
           </div>
           <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: 0.3 }}>Sabor Norteño</div>
           <div style={{ fontSize: 13, opacity: 0.9 }}>Cargando tu menú…</div>
