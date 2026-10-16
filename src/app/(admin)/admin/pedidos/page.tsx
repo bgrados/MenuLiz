@@ -434,8 +434,14 @@ export default function AdminPedidosPage() {
                 </div>
 
                 {/* Constancia de pago (Yape / Plin / Lemon) */}
-                {(requiresPaymentReceipt(order.payment_method) || order.payment_receipt_path) && (
+                {(requiresPaymentReceipt(order.payment_method) || order.payment_receipt_path || order.payment_confirmed_at) && (
                   <div className="flex flex-wrap items-center gap-2">
+                    {order.payment_confirmed_at && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Pago confirmado por el cliente{order.payment_note ? `: ${order.payment_note}` : ''}</span>
+                      </span>
+                    )}
                     {order.payment_receipt_path ? (
                       <button
                         onClick={() => handleViewReceipt(order)}

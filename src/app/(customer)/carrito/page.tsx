@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { useCart } from '@/hooks/use-cart';
 import { DeliveryType, PaymentMethod, OrderItem } from '@/types';
 import { DELIVERY_FEE, PAYMENT_LABELS } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
+import { requiresPaymentReceipt } from '@/lib/receipts';
+import { savePendingPayment } from '@/lib/pending-payment';
 import { formatCurrency } from '@/lib/utils';
 import { getDishImage } from '@/lib/dish-images';
 import { generateWhatsAppMessage, openWhatsApp } from '@/lib/whatsapp';
@@ -15,6 +18,7 @@ import confetti from 'canvas-confetti';
 
 export default function CustomerCartPage() {
   const router = useRouter();
+  const { restaurantName } = useRestaurantSettings();
   const {
     items,
     removeItem,
@@ -296,7 +300,11 @@ export default function CustomerCartPage() {
 
       // 5. Generate and Open WhatsApp Message
       const whatsappMsg = generateWhatsAppMessage(
-        { ...orderPayload, order_number: parseInt(orderId.replace(/[^0-9]/g, '')) || undefined },
+        {
+          ...orderPayload,
+          id: createdOrderUuid || undefined,
+          order_number: parseInt(orderId.replace(/[^0-9]/g, '')) || undefined,
+        },
         orderItemsPayload,
         deliveryType === 'delivery'
           ? {
@@ -308,6 +316,12 @@ export default function CustomerCartPage() {
       );
 
       openWhatsApp(whatsappMsg, ownerPhone);
+
+      // Recordatorio de pago: si el pedido es con Yape/Plin/Lemon guardamos un
+      // aviso para volver a pedirle la confirmación si se olvida.
+      if (createdOrderUuid && requiresPaymentReceipt(paymentMethod)) {
+        savePendingPayment({ oid: createdOrderUuid, pay: paymentMethod, orderId });
+      }
 
       // Autoguardar datos del cliente en este navegador (autocompletado futuro).
       // Se conservan dirección y ubicación aunque el pedido sea para recojo,
@@ -730,7 +744,7 @@ export default function CustomerCartPage() {
             </button>
 
             <p className="text-[11px] text-center text-stone-400 leading-tight">
-              Se guardará tu pedido y se abrirá WhatsApp con el mensaje prellenado para la dueña de MenuLiz.
+              Se guardará tu pedido y se abrirá WhatsApp con el mensaje prellenado para la dueña de {restaurantName}.
             </p>
 
           </form>

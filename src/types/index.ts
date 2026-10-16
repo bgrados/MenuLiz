@@ -66,6 +66,8 @@ export interface Order {
   payment_method: PaymentMethod;
   notes?: string | null;
   payment_receipt_path?: string | null;
+  payment_note?: string | null;
+  payment_confirmed_at?: string | null;
   status: OrderStatus;
   created_at: string;
   order_items?: OrderItem[];

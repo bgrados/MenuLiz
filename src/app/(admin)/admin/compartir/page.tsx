@@ -85,7 +85,7 @@ export default function AdminCompartirPage() {
       const image = canvas.toDataURL('image/png');
       const a = document.createElement('a');
       a.href = image;
-      a.download = `MenuLiz-Menu-Del-Dia.png`;
+      a.download = `${restaurantName.replace(/[^\w]+/g, '-').replace(/^-|-$/g, '') || 'Menu'}-Menu-Del-Dia.png`;
       a.click();
     } catch (err) {
       console.error('Error generating image canvas with html2canvas:', err);

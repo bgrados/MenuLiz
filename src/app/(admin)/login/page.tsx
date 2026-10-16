@@ -4,11 +4,12 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { RESTAURANT_NAME } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 import { UtensilsCrossed, Lock, Mail, ArrowRight, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { restaurantName } = useRestaurantSettings();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -100,7 +101,7 @@ export default function AdminLoginPage() {
           <UtensilsCrossed className="w-7 h-7" />
         </div>
         <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
-          Panel de Dueña - {RESTAURANT_NAME}
+          Panel de Dueña - {restaurantName}
         </h2>
         <p className="text-xs text-stone-500">
           Inicia sesión con Supabase Auth para administrar pedidos, platos y menú diario.

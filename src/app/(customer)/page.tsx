@@ -3,13 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { formatDateSpanish } from '@/lib/utils';
-import { RESTAURANT_NAME } from '@/lib/constants';
 import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 import { Sparkles, BookOpen, Utensils, Flame, CheckCircle2, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function CustomerLandingPage() {
   const todayFormatted = formatDateSpanish(new Date());
-  const { menuPrice } = useRestaurantSettings();
+  const { menuPrice, restaurantName } = useRestaurantSettings();
 
   return (
     <div className="space-y-8 sm:space-y-12">
@@ -29,7 +28,7 @@ export default function CustomerLandingPage() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-            Bienvenido a <span className="underline decoration-amber-300 decoration-wavy decoration-2">{RESTAURANT_NAME}</span>
+            Bienvenido a <span className="underline decoration-amber-300 decoration-wavy decoration-2">{restaurantName}</span>
           </h1>
 
           <p className="text-sm sm:text-base text-orange-100 font-medium leading-relaxed">

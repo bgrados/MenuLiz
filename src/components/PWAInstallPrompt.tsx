@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, X, Smartphone, Share } from 'lucide-react';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -14,6 +15,7 @@ interface AppleNavigator extends Navigator {
 }
 
 export default function PWAInstallPrompt() {
+  const { restaurantName } = useRestaurantSettings();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const deferredRef = useRef<BeforeInstallPromptEvent | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -75,7 +77,7 @@ export default function PWAInstallPrompt() {
             <Download className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-black">Instala MenuLiz en tu dispositivo</p>
+            <p className="text-sm font-black">Instala {restaurantName} en tu dispositivo</p>
             <p className="text-xs text-stone-300 mt-0.5">
               Accede más rápido desde tu pantalla de inicio y usa la app sin navegador.
             </p>
@@ -109,7 +111,7 @@ export default function PWAInstallPrompt() {
               <Smartphone className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-stone-900">Instala MenuLiz en tu tablet</p>
+              <p className="text-sm font-black text-stone-900">Instala {restaurantName} en tu tablet</p>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
                 Abre el menú del navegador (Chrome/Edge/Safari), selecciona
                 <strong className="text-stone-800"> “Agregar a pantalla de inicio”</strong> o

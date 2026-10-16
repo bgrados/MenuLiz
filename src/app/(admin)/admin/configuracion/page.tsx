@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { RestaurantSettings } from '@/types';
-import { DEFAULT_WHATSAPP_NUMBER } from '@/lib/constants';
+import { DEFAULT_WHATSAPP_NUMBER, RESTAURANT_NAME } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
 import { Settings, Save, CheckCircle2, Loader2, MessageCircle, Truck, UtensilsCrossed } from 'lucide-react';
 
@@ -15,7 +15,7 @@ export default function AdminConfiguracionPage() {
   const [whatsappNumber, setWhatsappNumber] = useState(DEFAULT_WHATSAPP_NUMBER);
   const [deliveryFee, setDeliveryFee] = useState(3.0);
   const [menuPrice, setMenuPrice] = useState(14.0);
-  const [restaurantName, setRestaurantName] = useState('MenuLiz');
+  const [restaurantName, setRestaurantName] = useState(RESTAURANT_NAME);
   const [address, setAddress] = useState('Atención en local y delivery en zona');
   const [openingHours, setOpeningHours] = useState('Lunes a Domingo: 11:30 AM - 4:30 PM');
 
@@ -39,7 +39,7 @@ export default function AdminConfiguracionPage() {
           setWhatsappNumber(data.whatsapp_number || DEFAULT_WHATSAPP_NUMBER);
           setDeliveryFee(Number(data.delivery_fee ?? 3.0));
           setMenuPrice(Number(data.menu_price ?? 14.0));
-          setRestaurantName(data.restaurant_name || 'MenuLiz');
+          setRestaurantName(data.restaurant_name || RESTAURANT_NAME);
           setAddress(data.address || 'Atención en local y delivery en zona');
           setOpeningHours(data.opening_hours || 'Lunes a Domingo: 11:30 AM - 4:30 PM');
         }

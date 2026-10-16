@@ -40,6 +40,14 @@ const CATEGORY_TAG: Record<string, string> = {
 // Íconos de ubicación para el delivery (también "seguros": Unicode 6.0, Emoji_Presentation=Yes)
 const PIN = String.fromCodePoint(0x1f4cd); // 📍
 const CAR = String.fromCodePoint(0x1f697); // 🚗
+const PAPERCLIP = String.fromCodePoint(0x1f4ce); // 📎
+const POINT_DOWN = String.fromCodePoint(0x1f449); // 👉
+
+/** Base de la app para armar el enlace de confirmación de pago. */
+function getSiteBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return process.env.NEXT_PUBLIC_SITE_URL || 'https://menuliz.vercel.app';
+}
 
 export interface OrderLocation {
   lat?: number | null;
@@ -111,6 +119,18 @@ export function generateWhatsAppMessage(
   }
 
   message += `\nMuchas gracias por su preferencia.`;
+
+  // Recordatorio + enlace para confirmar el pago (Yape/Plin/Lemon).
+  // El cliente puede tocar "Ya pagué" o compartir su constancia desde Yape,
+  // incluso si cierra la app: el enlace queda guardado en su propio chat.
+  const method = order.payment_method;
+  const needsReceipt = method === 'yape' || method === 'plin' || method === 'lemon';
+  if (needsReceipt && order.id) {
+    const link = `${getSiteBaseUrl()}/pago/${order.id}`;
+    message += `\n\n${PAPERCLIP} *No olvides confirmar tu pago aquí:*`;
+    message += `\n${POINT_DOWN} ${link}`;
+    message += `\nPuedes tocar "Ya pagué" o compartir tu constancia desde Yape.`;
+  }
 
   return message;
 }

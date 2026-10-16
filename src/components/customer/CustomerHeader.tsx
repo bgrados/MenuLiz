@@ -4,12 +4,19 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCart } from '@/hooks/use-cart';
-import { RESTAURANT_NAME } from '@/lib/constants';
-import { UtensilsCrossed, ShoppingBag, Sparkles, BookOpen } from 'lucide-react';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
+import { BrandMark } from '@/components/BrandMark';
+import { ShoppingBag, Sparkles, BookOpen } from 'lucide-react';
 
 export const CustomerHeader: React.FC = () => {
   const pathname = usePathname();
   const { totalItemCount, subtotal } = useCart();
+  const { restaurantName } = useRestaurantSettings();
+
+  // El nombre del restaurante se parte en dos: la última palabra va en naranja.
+  const nameParts = restaurantName.trim().split(/\s+/);
+  const brandTail = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+  const brandLead = brandTail ? nameParts.slice(0, -1).join(' ') + ' ' : restaurantName.trim();
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -18,14 +25,16 @@ export const CustomerHeader: React.FC = () => {
           
           {/* Logo & Brand */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25 group-hover:bg-orange-600 transition-colors">
-              <UtensilsCrossed className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
+            <BrandMark
+              size={44}
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl shadow-md shadow-orange-500/25 group-hover:brightness-105 transition-all"
+            />
             <div>
               <span className="text-xl sm:text-2xl font-black tracking-tight text-stone-900">
-                Menu<span className="text-orange-500">Liz</span>
+                {brandLead}
+                {brandTail && <span className="text-orange-500">{brandTail}</span>}
               </span>
-              <p className="text-[10px] sm:text-xs text-stone-500 font-medium -mt-1">Almuerzos & Menú Casero</p>
+              <p className="text-[10px] sm:text-xs text-stone-500 font-medium -mt-1">Sabor del norte & Menú Casero</p>
             </div>
           </Link>
 

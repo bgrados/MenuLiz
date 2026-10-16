@@ -1,8 +1,9 @@
 import { ImageResponse } from 'next/og';
 
-export const size = { width: 32, height: 32 };
+export const size = { width: 48, height: 48 };
 export const contentType = 'image/png';
 
+// Favicon de "Sabor Norteño" (monograma SN sobre degradado naranja).
 export default function Icon() {
   return new ImageResponse(
     (
@@ -13,14 +14,14 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#f97316',
-          borderRadius: 8,
-          color: 'white',
-          fontSize: 15,
+          backgroundImage: 'linear-gradient(135deg, #fb923c 0%, #f97316 52%, #ea580c 100%)',
+          color: '#ffffff',
+          fontSize: 21,
           fontWeight: 900,
+          letterSpacing: '-0.5px',
         }}
       >
-        ML
+        SN
       </div>
     ),
     size

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { RESTAURANT_NAME } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
+import { BrandMark } from '@/components/BrandMark';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -17,7 +18,6 @@ import {
   ExternalLink,
   Menu,
   X,
-  ChefHat,
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -29,6 +29,11 @@ export default function AdminLayout({
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = createClient();
+  const { restaurantName } = useRestaurantSettings();
+
+  const nameParts = restaurantName.trim().split(/\s+/);
+  const brandTail = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+  const brandLead = brandTail ? nameParts.slice(0, -1).join(' ') + ' ' : restaurantName.trim();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !sessionStorage.getItem('menuliz_admin_auth')) {
@@ -68,12 +73,11 @@ export default function AdminLayout({
         {/* Brand Header */}
         <div className="p-6 border-b border-stone-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-md">
-              <ChefHat className="w-6 h-6" />
-            </div>
+            <BrandMark size={40} className="w-10 h-10 rounded-2xl shadow-md" />
             <div>
               <span className="text-xl font-black text-white">
-                Menu<span className="text-orange-500">Liz</span>
+                {brandLead}
+                {brandTail && <span className="text-orange-500">{brandTail}</span>}
               </span>
               <p className="text-[11px] text-stone-400 font-semibold">Panel de Control</p>
             </div>
@@ -131,11 +135,11 @@ export default function AdminLayout({
       {/* Mobile Top Header */}
       <header className="md:hidden sticky top-0 z-30 bg-stone-900 text-white px-4 py-3 flex items-center justify-between border-b border-stone-800 shadow-md">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center text-white">
-            <ChefHat className="w-5 h-5" />
-          </div>
+          <BrandMark size={32} className="w-8 h-8 rounded-xl" />
           <span className="text-lg font-black">
-            Menu<span className="text-orange-500">Liz</span> Admin
+            {brandLead}
+            {brandTail && <span className="text-orange-500">{brandTail}</span>}{' '}
+            <span className="text-stone-400">Admin</span>
           </span>
         </div>
 

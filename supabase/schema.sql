@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
   payment_method TEXT NOT NULL CHECK (payment_method IN ('efectivo', 'yape', 'plin', 'lemon')),
   notes TEXT,
   payment_receipt_path TEXT,
+  payment_note TEXT,
+  payment_confirmed_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'nuevo' CHECK (status IN ('nuevo', 'confirmado', 'en_preparacion', 'en_camino', 'listo_para_recoger', 'completado', 'cancelado')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -302,7 +304,7 @@ CREATE TABLE IF NOT EXISTS public.restaurant_settings (
   whatsapp_number TEXT NOT NULL DEFAULT '51999999999',
   delivery_fee NUMERIC(10, 2) NOT NULL DEFAULT 3.00,
   menu_price NUMERIC(10, 2) NOT NULL DEFAULT 14.00,
-  restaurant_name TEXT NOT NULL DEFAULT 'MenuLiz',
+  restaurant_name TEXT NOT NULL DEFAULT 'Sabor Norteño',
   address TEXT DEFAULT 'Atención en local y delivery en zona',
   opening_hours TEXT DEFAULT 'Lunes a Domingo: 11:30 AM - 4:30 PM',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
@@ -323,7 +325,7 @@ CREATE POLICY "Lectura pública de configuración"
   USING (true);
 
 INSERT INTO public.restaurant_settings (id, whatsapp_number, delivery_fee, restaurant_name)
-VALUES ('main', '51999999999', 3.00, 'MenuLiz')
+VALUES ('main', '51999999999', 3.00, 'Sabor Norteño')
 ON CONFLICT (id) DO NOTHING;
 
 -- 15. Función RPC para crear pedidos sin exponer SELECT directo al rol anon
@@ -381,6 +383,53 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.attach_payment_receipt(UUID, TEXT) TO anon, authenticated;
+
+-- 15c. Confirmación de pago "en 1 toque" (para quien no sabe subir/adjuntar la constancia)
+CREATE OR REPLACE FUNCTION public.confirm_order_payment(
+  p_order_id UUID,
+  p_note TEXT DEFAULT NULL
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.orders
+     SET payment_confirmed_at = timezone('utc'::text, now()),
+         payment_note = NULLIF(trim(coalesce(p_note, '')), '')
+   WHERE id = p_order_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.confirm_order_payment(UUID, TEXT) TO anon, authenticated;
+
+-- 15d. Lectura mínima del pedido para la página /pago/[id] (solo por UUID)
+CREATE OR REPLACE FUNCTION public.get_order_payment_info(p_order_id UUID)
+RETURNS TABLE (
+  id UUID,
+  order_number INTEGER,
+  customer_name TEXT,
+  payment_method TEXT,
+  total NUMERIC,
+  has_receipt BOOLEAN,
+  payment_confirmed_at TIMESTAMPTZ
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT o.id,
+         o.order_number,
+         o.customer_name,
+         o.payment_method,
+         o.total,
+         (o.payment_receipt_path IS NOT NULL) AS has_receipt,
+         o.payment_confirmed_at
+    FROM public.orders o
+   WHERE o.id = p_order_id;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_order_payment_info(UUID) TO anon, authenticated;
 
 -- 16. Base de clientes (CRM simple para comensales recurrentes)
 CREATE TABLE IF NOT EXISTS public.customers (

@@ -1,15 +1,18 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, MessageCircle, Home, Sparkles, Clock, MapPin, Store, Paperclip } from 'lucide-react';
-import { RESTAURANT_NAME, DEFAULT_WHATSAPP_NUMBER, PAYMENT_LABELS } from '@/lib/constants';
-import { requiresPaymentReceipt } from '@/lib/receipts';
-import PaymentReceiptUpload from '@/components/PaymentReceiptUpload';
+import { CheckCircle2, MessageCircle, Home, Clock, MapPin, Store, Paperclip } from 'lucide-react';
+import { DEFAULT_WHATSAPP_NUMBER, PAYMENT_LABELS } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
+import { getOrderPaymentInfo, requiresPaymentReceipt } from '@/lib/receipts';
+import { clearPendingPayment } from '@/lib/pending-payment';
+import PaymentActions from '@/components/PaymentActions';
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
+  const { restaurantName } = useRestaurantSettings();
   const orderId = searchParams.get('orderId') || '#PED-101';
   const name = searchParams.get('name') || 'Estimado cliente';
   const total = searchParams.get('total') || '14.00';
@@ -17,9 +20,29 @@ function ConfirmationContent() {
   const orderUuid = searchParams.get('oid') || '';
   const paymentMethod = searchParams.get('pay') || '';
 
+  const [initialConfirmed, setInitialConfirmed] = useState(false);
+  const [initialHasReceipt, setInitialHasReceipt] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!orderUuid) return;
+    (async () => {
+      const info = await getOrderPaymentInfo(orderUuid);
+      if (!cancelled && info) {
+        setInitialConfirmed(Boolean(info.payment_confirmed_at));
+        setInitialHasReceipt(info.has_receipt);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderUuid]);
+
+  const needsReceipt = Boolean(orderUuid) && requiresPaymentReceipt(paymentMethod);
+
   return (
     <div className="max-w-md mx-auto py-10 text-center space-y-6">
-      
+
       {/* Icon Badge */}
       <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/15 animate-bounce">
         <CheckCircle2 className="w-10 h-10" />
@@ -33,9 +56,35 @@ function ConfirmationContent() {
           ¡Muchas gracias, {name}!
         </h1>
         <p className="text-xs sm:text-sm text-stone-500">
-          Tu pedido <strong className="text-stone-800 font-bold">{orderId}</strong> ha sido enviado a la dueña de {RESTAURANT_NAME} por WhatsApp para ser preparado.
+          Tu pedido <strong className="text-stone-800 font-bold">{orderId}</strong> ha sido enviado a la dueña de {restaurantName} por WhatsApp para ser preparado.
         </p>
       </div>
+
+      {/* Constancia de pago (Yape / Plin / Lemon) — lo más visible, arriba */}
+      {needsReceipt && (
+        <div className="bg-white rounded-3xl border-2 border-orange-300 p-5 shadow-md text-left space-y-3">
+          <div className="flex items-start gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+              <Paperclip className="w-4 h-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-stone-900">
+                Confirma tu pago con {PAYMENT_LABELS[paymentMethod as keyof typeof PAYMENT_LABELS] || 'Yape'}
+              </h3>
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                Elige lo más fácil: toca “Ya pagué”, comparte tu constancia desde Yape o súbela aquí.
+              </p>
+            </div>
+          </div>
+          <PaymentActions
+            orderId={orderUuid}
+            paymentMethod={paymentMethod}
+            initialConfirmed={initialConfirmed}
+            initialHasReceipt={initialHasReceipt}
+            onDone={() => clearPendingPayment(orderUuid)}
+          />
+        </div>
+      )}
 
       {/* Summary Card */}
       <div className="bg-white rounded-3xl border border-stone-200 p-5 shadow-xs text-left space-y-3 text-xs sm:text-sm">
@@ -74,26 +123,6 @@ function ConfirmationContent() {
           El tiempo estimado de preparación es de <strong className="font-bold">20 a 35 minutos</strong>. Te confirmaremos por WhatsApp en cuanto tu pedido esté en camino o listo para recoger.
         </p>
       </div>
-
-      {/* Constancia de pago (Yape / Plin / Lemon) */}
-      {orderUuid && requiresPaymentReceipt(paymentMethod) && (
-        <div className="bg-white rounded-3xl border border-orange-200 p-5 shadow-xs text-left space-y-3">
-          <div className="flex items-start gap-2.5">
-            <span className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-              <Paperclip className="w-4 h-4" />
-            </span>
-            <div>
-              <h3 className="text-sm font-black text-stone-900">
-                ¿Ya pagaste con {PAYMENT_LABELS[paymentMethod as keyof typeof PAYMENT_LABELS] || 'Yape'}?
-              </h3>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                Sube tu constancia y quedará guardada en tu pedido. Así la dueña la verifica al toque.
-              </p>
-            </div>
-          </div>
-          <PaymentReceiptUpload orderId={orderUuid} label="Subir mi constancia de pago" />
-        </div>
-      )}
 
       {/* Action Buttons */}
       <div className="pt-2 flex flex-col gap-2.5">

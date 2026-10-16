@@ -1,6 +1,7 @@
 import React from 'react';
 import { CustomerHeader } from '@/components/customer/CustomerHeader';
 import { CustomerBottomNav } from '@/components/customer/CustomerBottomNav';
+import PendingPaymentBanner from '@/components/customer/PendingPaymentBanner';
 import { Heart, Clock, MapPin, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { RESTAURANT_NAME } from '@/lib/constants';
@@ -34,7 +35,9 @@ export default async function CustomerLayout({
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900 pb-20 sm:pb-0">
       <CustomerHeader />
-      
+
+      <PendingPaymentBanner />
+
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
         {children}
       </main>
@@ -75,7 +78,7 @@ export default async function CustomerLayout({
           </div>
 
           <div className="mt-8 pt-6 border-t border-stone-800 flex items-center justify-between text-xs text-stone-500">
-            <p>© 2026 {RESTAURANT_NAME}. Todos los derechos reservados.</p>
+            <p>© 2026 {restaurantName}. Todos los derechos reservados.</p>
             <p className="flex items-center gap-1">
               Hecho con <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" /> para ti
             </p>

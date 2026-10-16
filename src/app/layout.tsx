@@ -1,29 +1,43 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { RestaurantSettingsProvider } from '@/components/RestaurantSettingsProvider';
+import { createClient } from '@/lib/supabase/server';
+import { RESTAURANT_NAME } from '@/lib/constants';
 
-export const metadata: Metadata = {
-  title: 'MenuLiz | Restaurante de Menú Casero',
-  description: 'Descubre los mejores menús del día, platos a la carta, combos ejecutivos y postres caseros. Haz tu pedido directo por WhatsApp con entrega rápida.',
-  keywords: ['MenuLiz', 'menú del día', 'restaurante', 'almuerzos', 'comida criolla', 'pedidos whatsapp'],
-  applicationName: 'MenuLiz',
-  appleWebApp: {
-    capable: true,
-    title: 'MenuLiz',
-    statusBarStyle: 'default',
-  },
-  icons: {
-    icon: '/icon',
-    apple: '/api/pwa-icon?size=192',
-  },
-  openGraph: {
-    title: 'MenuLiz | Restaurante de Menú',
-    description: 'El auténtico sabor casero de cada día. Pide tu menú por WhatsApp.',
-    siteName: 'MenuLiz',
-    locale: 'es_PE',
-    type: 'website',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  let name = RESTAURANT_NAME;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('restaurant_settings')
+      .select('restaurant_name')
+      .eq('id', 'main')
+      .maybeSingle();
+    if (data?.restaurant_name) name = data.restaurant_name;
+  } catch {
+    // Usar el nombre por defecto si la DB no responde
+  }
+
+  return {
+    title: `${name} | Restaurante de Menú Casero`,
+    description:
+      'Descubre los mejores menús del día, platos a la carta, combos ejecutivos y postres caseros. Haz tu pedido directo por WhatsApp con entrega rápida.',
+    keywords: [name, 'menú del día', 'restaurante', 'almuerzos', 'comida criolla', 'pedidos whatsapp'],
+    applicationName: name,
+    appleWebApp: {
+      capable: true,
+      title: name,
+      statusBarStyle: 'default',
+    },
+    openGraph: {
+      title: `${name} | Restaurante de Menú`,
+      description: 'El auténtico sabor casero de cada día. Pide tu menú por WhatsApp.',
+      siteName: name,
+      locale: 'es_PE',
+      type: 'website',
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#f97316',
@@ -60,7 +74,7 @@ export default function RootLayout({
             background: '#f97316',
             color: '#ffffff',
             pointerEvents: 'none',
-            animation: 'menulizSplashHide 0.45s ease 0.9s forwards',
+            animation: 'snSplashHide 0.45s ease 0.9s forwards',
           }}
         >
           <div
@@ -75,17 +89,18 @@ export default function RootLayout({
               justifyContent: 'center',
               fontWeight: 900,
               fontSize: 36,
+              letterSpacing: '-1px',
               boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
             }}
           >
-            ML
+            SN
           </div>
-          <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: 0.5 }}>MenuLiz</div>
+          <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: 0.3 }}>Sabor Norteño</div>
           <div style={{ fontSize: 13, opacity: 0.9 }}>Cargando tu menú…</div>
         </div>
         <style
           dangerouslySetInnerHTML={{
-            __html: '@keyframes menulizSplashHide{to{opacity:0;visibility:hidden}}',
+            __html: '@keyframes snSplashHide{to{opacity:0;visibility:hidden}}',
           }}
         />
         <RestaurantSettingsProvider>{children}</RestaurantSettingsProvider>

@@ -1,4 +1,5 @@
-export const RESTAURANT_NAME = process.env.NEXT_PUBLIC_RESTAURANT_NAME || 'MenuLiz';
+export const RESTAURANT_NAME = process.env.NEXT_PUBLIC_RESTAURANT_NAME || 'Sabor Norteño';
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://menuliz.vercel.app';
 export const MENU_PRICE = Number(process.env.NEXT_PUBLIC_MENU_PRICE) || 14;
 export const CURRENCY = 'S/';
 export const DEFAULT_WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '51999999999';
