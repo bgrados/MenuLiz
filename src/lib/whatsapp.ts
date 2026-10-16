@@ -57,7 +57,10 @@ export function generateWhatsAppMessage(order: Partial<Order>, items: OrderItem[
     const itemTotal = (item.quantity * item.unit_price).toFixed(2);
     const emoji = CATEGORY_EMOJI[item.category] || '';
     const tag = CATEGORY_TAG[item.category] || 'Plato';
-    message += `${emoji} ${item.quantity}x ${item.dish_name}${isCombo} [${tag}] - S/ ${itemTotal}\n`;
+    const emojiPrefix = emoji ? ` ${emoji}` : '';
+    // El emoji va DESPUÉS de la etiqueta: así, si algún equipo no lo renderiza,
+    // la línea igual queda legible ("[Entrada] 1x Causa Rellena - S/ 4.00").
+    message += `[${tag}]${emojiPrefix} ${item.quantity}x ${item.dish_name}${isCombo} - S/ ${itemTotal}\n`;
   });
 
   message += `\n*Subtotal:* S/ ${(order.subtotal || 0).toFixed(2)}\n`;

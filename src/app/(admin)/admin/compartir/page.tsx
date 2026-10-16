@@ -101,7 +101,7 @@ export default function AdminCompartirPage() {
     text += `🔥 *Combo Completo a solo S/ ${MENU_PRICE.toFixed(2)}*\n`;
     text += `(1 Entrada + 1 Segundo + 1 Refresco)\n\n`;
 
-    text += `🥗 *ENTRADAS:*\n`;
+    text += `🍲 *ENTRADAS:*\n`;
     grouped.entradas.filter((e) => e.is_available).forEach((e) => {
       text += `• ${e.name}\n`;
     });
@@ -111,12 +111,12 @@ export default function AdminCompartirPage() {
       text += `• ${s.name}\n`;
     });
 
-    text += `\n🥤 *REFRESCOS:*\n`;
+    text += `\n🍹 *REFRESCOS:*\n`;
     grouped.refrescos.filter((r) => r.is_available).forEach((r) => {
       text += `• ${r.name}\n`;
     });
 
-    text += `\n🛵 *Pide tu almuerzo online aquí:* 👇\n${link}\n\n`;
+    text += `\n🚚 *Pide tu almuerzo online aquí:* 👇\n${link}\n\n`;
     text += `_¡Te esperamos con el mejor sabor casero!_ 😋`;
 
     const encoded = encodeURIComponent(text);
