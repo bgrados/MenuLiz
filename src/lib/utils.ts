@@ -21,7 +21,10 @@ export function formatDateSpanish(date: Date | string = new Date()): string {
   }).format(d);
 }
 
-export function calculateComboPricing(items: CartItem[]): ComboCalculationResult {
+export function calculateComboPricing(
+  items: CartItem[],
+  menuPrice: number = MENU_PRICE
+): ComboCalculationResult {
   // Count items by category for menu combo detection
   let entradasCount = 0;
   let segundosCount = 0;
@@ -36,7 +39,7 @@ export function calculateComboPricing(items: CartItem[]): ComboCalculationResult
 
   // A complete combo is 1 Entrada + 1 Segundo + 1 Refresco
   const fullCombosCount = Math.min(entradasCount, segundosCount, refrescosCount);
-  const comboTotal = fullCombosCount * MENU_PRICE;
+  const comboTotal = fullCombosCount * menuPrice;
 
   // Track how many of each category are absorbed by full combos
   let remainingEntradas = fullCombosCount;

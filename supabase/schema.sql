@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   total NUMERIC(10, 2) NOT NULL,
   payment_method TEXT NOT NULL CHECK (payment_method IN ('efectivo', 'yape', 'plin', 'lemon')),
   notes TEXT,
+  payment_receipt_path TEXT,
   status TEXT NOT NULL DEFAULT 'nuevo' CHECK (status IN ('nuevo', 'confirmado', 'en_preparacion', 'en_camino', 'listo_para_recoger', 'completado', 'cancelado')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -219,6 +220,22 @@ CREATE POLICY "Admins suben fotos de platos"
   TO authenticated
   WITH CHECK (bucket_id = 'dish-images');
 
+-- 12b. Bucket privado para constancias de pago (Yape/Plin/Lemon)
+--      El cliente las sube; solo el admin las ve (signed URLs).
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('payment-receipts', 'payment-receipts', false)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Clientes suben constancias de pago"
+  ON storage.objects FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (bucket_id = 'payment-receipts');
+
+CREATE POLICY "Admins ven constancias de pago"
+  ON storage.objects FOR SELECT
+  TO authenticated
+  USING (bucket_id = 'payment-receipts');
+
 -- 13. Datos Semilla Iniciales
 INSERT INTO public.dishes (id, name, description, price, category, image_url, is_active)
 VALUES
@@ -284,6 +301,7 @@ CREATE TABLE IF NOT EXISTS public.restaurant_settings (
   id TEXT PRIMARY KEY DEFAULT 'main',
   whatsapp_number TEXT NOT NULL DEFAULT '51999999999',
   delivery_fee NUMERIC(10, 2) NOT NULL DEFAULT 3.00,
+  menu_price NUMERIC(10, 2) NOT NULL DEFAULT 14.00,
   restaurant_name TEXT NOT NULL DEFAULT 'MenuLiz',
   address TEXT DEFAULT 'Atención en local y delivery en zona',
   opening_hours TEXT DEFAULT 'Lunes a Domingo: 11:30 AM - 4:30 PM',
@@ -345,6 +363,24 @@ $$;
 GRANT EXECUTE ON FUNCTION public.create_order(
   TEXT, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT
 ) TO anon, authenticated;
+
+-- 15b. RPC para que el cliente asocie la constancia de pago a su pedido
+CREATE OR REPLACE FUNCTION public.attach_payment_receipt(
+  p_order_id UUID,
+  p_receipt_path TEXT
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.orders
+     SET payment_receipt_path = p_receipt_path
+   WHERE id = p_order_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.attach_payment_receipt(UUID, TEXT) TO anon, authenticated;
 
 -- 16. Base de clientes (CRM simple para comensales recurrentes)
 CREATE TABLE IF NOT EXISTS public.customers (

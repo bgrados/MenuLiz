@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { RestaurantSettingsProvider } from '@/components/RestaurantSettingsProvider';
 
 export const metadata: Metadata = {
   title: 'MenuLiz | Restaurante de Menú Casero',
@@ -87,7 +88,7 @@ export default function RootLayout({
             __html: '@keyframes menulizSplashHide{to{opacity:0;visibility:hidden}}',
           }}
         />
-        {children}
+        <RestaurantSettingsProvider>{children}</RestaurantSettingsProvider>
       </body>
     </html>
   );

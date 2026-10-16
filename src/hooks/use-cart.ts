@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CartItem, DailyDishItem, Dish } from '@/types';
 import { calculateComboPricing } from '@/lib/utils';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 
 const CART_STORAGE_KEY = 'menuliz_cart_v1';
 
@@ -27,6 +28,7 @@ function notifyListeners() {
 }
 
 export function useCart() {
+  const { menuPrice } = useRestaurantSettings();
   const [items, setItems] = useState<CartItem[]>(() => [...globalCart]);
 
   useEffect(() => {
@@ -74,7 +76,7 @@ export function useCart() {
     notifyListeners();
   };
 
-  const comboCalculation = calculateComboPricing(items);
+  const comboCalculation = calculateComboPricing(items, menuPrice);
   const totalItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return {

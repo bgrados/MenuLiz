@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useDailyMenu } from '@/hooks/use-daily-menu';
 import { useCart } from '@/hooks/use-cart';
 import { DailyDishItem } from '@/types';
-import { MENU_PRICE, CATEGORY_LABELS } from '@/lib/constants';
+import { CATEGORY_LABELS } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 import { formatDateSpanish, formatCurrency } from '@/lib/utils';
 import { getDishImage } from '@/lib/dish-images';
 import { Sparkles, Plus, Minus, ShoppingBag, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -13,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CustomerMenuPage() {
   const { items, grouped, loading } = useDailyMenu();
+  const { menuPrice } = useRestaurantSettings();
   const { items: cartItems, addItem, removeItem, updateQuantity, fullCombosCount, comboTotal, leftoverTotal, subtotal, totalItemCount } = useCart();
 
   const getItemQuantity = (id: string) => {
@@ -143,7 +145,7 @@ export default function CustomerMenuPage() {
         </div>
         <h2 className="text-2xl sm:text-3xl font-black">Menú del Día</h2>
         <p className="text-xs sm:text-sm text-orange-100 max-w-xl">
-          ¡Arma tu almuerzo a tu gusto! 1 Entrada + 1 Segundo + 1 Refresco por solo <strong className="text-white underline font-black">S/ {MENU_PRICE.toFixed(2)}</strong>. También puedes pedir platos sueltos o en cualquier combinación.
+          ¡Arma tu almuerzo a tu gusto! 1 Entrada + 1 Segundo + 1 Refresco por solo <strong className="text-white underline font-black">S/ {menuPrice.toFixed(2)}</strong>. También puedes pedir platos sueltos o en cualquier combinación.
         </p>
       </div>
 

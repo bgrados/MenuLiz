@@ -4,7 +4,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { useDailyMenu } from '@/hooks/use-daily-menu';
 import { createClient } from '@/lib/supabase/client';
-import { RESTAURANT_NAME, MENU_PRICE, DEFAULT_WHATSAPP_NUMBER } from '@/lib/constants';
+import { RESTAURANT_NAME, DEFAULT_WHATSAPP_NUMBER } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 import { formatDateSpanish, formatCurrency } from '@/lib/utils';
 import {
   Share2,
@@ -21,6 +22,7 @@ import {
 
 export default function AdminCompartirPage() {
   const { grouped, loading } = useDailyMenu();
+  const { menuPrice } = useRestaurantSettings();
   const menuCardRef = useRef<HTMLDivElement>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -98,7 +100,7 @@ export default function AdminCompartirPage() {
 
     let text = `🍲 *¡MENÚ DEL DÍA EN ${restaurantName.toUpperCase()}!* ✨\n`;
     text += `📅 *${todayFormatted}*\n\n`;
-    text += `🔥 *Combo Completo a solo S/ ${MENU_PRICE.toFixed(2)}*\n`;
+    text += `🔥 *Combo Completo a solo S/ ${menuPrice.toFixed(2)}*\n`;
     text += `(1 Entrada + 1 Segundo + 1 Refresco)\n\n`;
 
     text += `🍲 *ENTRADAS:*\n`;
@@ -197,7 +199,7 @@ export default function AdminCompartirPage() {
 
           {/* Pricing Banner */}
           <div className="bg-amber-100/80 px-4 py-2.5 text-center text-amber-950 font-bold text-xs border-y border-amber-200">
-            ⭐ 1 Entrada + 1 Segundo + 1 Refresco = <strong className="text-sm font-black text-orange-600">S/ {MENU_PRICE.toFixed(2)}</strong>
+            ⭐ 1 Entrada + 1 Segundo + 1 Refresco = <strong className="text-sm font-black text-orange-600">S/ {menuPrice.toFixed(2)}</strong>
           </div>
 
           {/* Menu Sections */}

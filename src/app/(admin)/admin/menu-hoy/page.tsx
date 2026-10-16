@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Dish, DishCategory } from '@/types';
-import { CATEGORY_LABELS, MENU_PRICE } from '@/lib/constants';
+import { CATEGORY_LABELS } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 import { formatCurrency, formatDateSpanish } from '@/lib/utils';
 import {
   CalendarDays,
@@ -24,6 +25,7 @@ interface MenuSelectionState {
 }
 
 export default function AdminMenuHoyPage() {
+  const { menuPrice } = useRestaurantSettings();
   const [selectedDate, setSelectedDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
@@ -312,7 +314,7 @@ export default function AdminMenuHoyPage() {
             <div>
               <p className="font-bold">Regla del Menú:</p>
               <p className="text-stone-600 mt-0.5">
-                Recomendamos activar 2-3 entradas, 4-5 segundos y 1-2 refrescos para el Combo de S/ {MENU_PRICE.toFixed(2)}.
+                Recomendamos activar 2-3 entradas, 4-5 segundos y 1-2 refrescos para el Combo de S/ {menuPrice.toFixed(2)}.
               </p>
             </div>
             <div className="text-right shrink-0">
@@ -586,7 +588,7 @@ export default function AdminMenuHoyPage() {
               
               <div className="bg-orange-500 rounded-2xl p-4 text-white text-center space-y-1">
                 <span className="text-[10px] font-black uppercase text-amber-200">Menú del Día</span>
-                <p className="font-bold text-sm">Combo Completo: S/ {MENU_PRICE.toFixed(2)}</p>
+                <p className="font-bold text-sm">Combo Completo: S/ {menuPrice.toFixed(2)}</p>
                 <p className="text-[10px] text-orange-100">1 Entrada + 1 Segundo + 1 Refresco</p>
               </div>
 

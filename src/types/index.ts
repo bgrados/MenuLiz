@@ -65,6 +65,7 @@ export interface Order {
   total: number;
   payment_method: PaymentMethod;
   notes?: string | null;
+  payment_receipt_path?: string | null;
   status: OrderStatus;
   created_at: string;
   order_items?: OrderItem[];
@@ -96,5 +97,6 @@ export interface RestaurantSettings {
   whatsapp_number: string;
   restaurant_name?: string | null;
   delivery_fee?: number | null;
+  menu_price?: number | null;
   updated_at?: string;
 }

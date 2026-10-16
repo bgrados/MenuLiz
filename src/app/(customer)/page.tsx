@@ -3,11 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { formatDateSpanish } from '@/lib/utils';
-import { RESTAURANT_NAME, MENU_PRICE } from '@/lib/constants';
+import { RESTAURANT_NAME } from '@/lib/constants';
+import { useRestaurantSettings } from '@/components/RestaurantSettingsProvider';
 import { Sparkles, BookOpen, Utensils, Flame, CheckCircle2, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function CustomerLandingPage() {
   const todayFormatted = formatDateSpanish(new Date());
+  const { menuPrice } = useRestaurantSettings();
 
   return (
     <div className="space-y-8 sm:space-y-12">
@@ -41,7 +43,7 @@ export default function CustomerLandingPage() {
               <span>Combo Menú Completo:</span>
             </div>
             <span className="text-stone-700">1 Entrada + 1 Segundo + 1 Refresco por</span>
-            <span className="text-base sm:text-lg font-black text-orange-600">S/ {MENU_PRICE.toFixed(2)}</span>
+            <span className="text-base sm:text-lg font-black text-orange-600">S/ {menuPrice.toFixed(2)}</span>
           </div>
 
           {/* Main Action Buttons */}

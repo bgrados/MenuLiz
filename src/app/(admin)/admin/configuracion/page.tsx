@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { RestaurantSettings } from '@/types';
 import { DEFAULT_WHATSAPP_NUMBER } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
-import { Settings, Save, CheckCircle2, Loader2, MessageCircle, Truck } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Loader2, MessageCircle, Truck, UtensilsCrossed } from 'lucide-react';
 
 export default function AdminConfiguracionPage() {
   const [loading, setLoading] = useState(true);
@@ -14,6 +14,7 @@ export default function AdminConfiguracionPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState(DEFAULT_WHATSAPP_NUMBER);
   const [deliveryFee, setDeliveryFee] = useState(3.0);
+  const [menuPrice, setMenuPrice] = useState(14.0);
   const [restaurantName, setRestaurantName] = useState('MenuLiz');
   const [address, setAddress] = useState('Atención en local y delivery en zona');
   const [openingHours, setOpeningHours] = useState('Lunes a Domingo: 11:30 AM - 4:30 PM');
@@ -37,6 +38,7 @@ export default function AdminConfiguracionPage() {
         if (data) {
           setWhatsappNumber(data.whatsapp_number || DEFAULT_WHATSAPP_NUMBER);
           setDeliveryFee(Number(data.delivery_fee ?? 3.0));
+          setMenuPrice(Number(data.menu_price ?? 14.0));
           setRestaurantName(data.restaurant_name || 'MenuLiz');
           setAddress(data.address || 'Atención en local y delivery en zona');
           setOpeningHours(data.opening_hours || 'Lunes a Domingo: 11:30 AM - 4:30 PM');
@@ -64,6 +66,7 @@ export default function AdminConfiguracionPage() {
           id: 'main',
           whatsapp_number: whatsappNumber.trim(),
           delivery_fee: deliveryFee,
+          menu_price: menuPrice,
           restaurant_name: restaurantName.trim(),
           address: address.trim(),
           opening_hours: openingHours.trim(),
@@ -136,6 +139,26 @@ export default function AdminConfiguracionPage() {
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-stone-700">Precio del menú completo (S/)</label>
+            <div className="relative">
+              <UtensilsCrossed className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+              <input
+                type="number"
+                step="0.50"
+                min="0"
+                required
+                value={menuPrice}
+                onChange={(e) => setMenuPrice(Number(e.target.value) || 0)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm"
+              />
+            </div>
+            <p className="text-[11px] text-stone-500">
+              Precio del combo (1 entrada + 1 segundo + 1 refresco). Este valor se usa en toda la app:
+              carrito, menú del día, enlace para compartir y previsualización.
+            </p>
           </div>
 
           <div className="space-y-2">
