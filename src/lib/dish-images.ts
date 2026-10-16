@@ -47,9 +47,15 @@ const DISH_IMAGE_RULES: DishImageRule[] = [
   { keywords: ['hierba luisa'], image: '/images/agua-de-hierba-luisa.webp' },
   { keywords: ['sancochado'], image: '/images/sancochado.webp' },
   { keywords: ['solterito'], image: '/images/solterito-arequipeno.webp' },
-  { keywords: ['sopa a la minuta', 'sopa minuta'], image: '/images/sopalaminuta.webp' },
+  { keywords: ['sopa a la minuta', 'sopa minuta', 'sopa la minuta'], image: '/images/sopalaminuta.webp' },
   { keywords: ['sudado'], image: '/images/sudado-de-pescado_web.jpg.webp' },
   { keywords: ['asado'], image: '/images/asadopure.jpg' },
+
+  // --- Platos del menú actual con foto local propia ---
+  { keywords: ['sopa de casa'], image: '/images/sopa-de-casa.webp' },
+  { keywords: ['gelatina'], image: '/images/gelatina.webp' },
+  { keywords: ['carambola'], image: '/images/refresco-de-carambola-peruano.webp' },
+  { keywords: ['olluco', 'olluquito'], image: '/images/olluquito-con-charqui.webp' },
 ];
 
 /** Quita acentos y mayúsculas para comparar de forma robusta. */
