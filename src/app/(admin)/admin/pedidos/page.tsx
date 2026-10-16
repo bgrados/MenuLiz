@@ -351,7 +351,7 @@ export default function AdminPedidosPage() {
                       <div className="flex items-center gap-2">
                         <h3 className="text-base font-bold text-stone-900">{order.customer_name}</h3>
                         <a
-                          href={`https://wa.me/51${order.customer_phone.replace(/[^0-9]/g, '')}`}
+                          href={`https://api.whatsapp.com/send?phone=51${order.customer_phone.replace(/[^0-9]/g, '')}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200"

@@ -118,6 +118,10 @@ export function generateWhatsAppMessage(
 export function openWhatsApp(message: string, phoneNumber: string = DEFAULT_WHATSAPP_NUMBER): void {
   const cleanNumber = phoneNumber.replace(/[^0-9]/g, '');
   const encodedText = encodeURIComponent(message);
-  const url = `https://wa.me/${cleanNumber}?text=${encodedText}`;
+  // IMPORTANTE: abrimos https://api.whatsapp.com/send DIRECTAMENTE (nunca wa.me).
+  // El redirect de wa.me vuelve a decodificar el texto y rompe los caracteres UTF-8
+  // de 4 bytes (los emojis), convirtiéndolos en U+FFFD (el rombo con "?").
+  // Verificado en el chunk desplegado y con captura en Android.
+  const url = `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodedText}`;
   window.open(url, '_blank');
 }

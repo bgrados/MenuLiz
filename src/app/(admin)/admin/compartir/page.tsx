@@ -120,7 +120,8 @@ export default function AdminCompartirPage() {
     text += `_¡Te esperamos con el mejor sabor casero!_ 😋`;
 
     const encoded = encodeURIComponent(text);
-    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    // api.whatsapp.com/send directo (el redirect de wa.me rompe los emojis → U+FFFD)
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
   };
 
   return (

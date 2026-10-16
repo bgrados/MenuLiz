@@ -74,7 +74,7 @@ function ConfirmationContent() {
       {/* Action Buttons */}
       <div className="pt-2 flex flex-col gap-2.5">
         <a
-          href={`https://wa.me/${DEFAULT_WHATSAPP_NUMBER}`}
+          href={`https://api.whatsapp.com/send?phone=${DEFAULT_WHATSAPP_NUMBER}`}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full py-3.5 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"

@@ -108,7 +108,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     message += `\n_Muchas gracias, espero su confirmación._ 🙏`;
 
     const encoded = encodeURIComponent(message);
-    const url = `https://wa.me/${whatsappNumber}?text=${encoded}`;
+    // api.whatsapp.com/send directo (el redirect de wa.me rompe los emojis → U+FFFD)
+    const url = `https://api.whatsapp.com/send?phone=${whatsappNumber.replace(/[^0-9]/g, '')}&text=${encoded}`;
     window.open(url, '_blank');
   };
 

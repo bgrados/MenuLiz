@@ -89,7 +89,7 @@ export default function AdminClientesPage() {
                   <div>
                     <h3 className="text-sm font-bold text-stone-900">{c.name || 'Sin nombre'}</h3>
                     <a
-                      href={`https://wa.me/51${c.phone.replace(/[^0-9]/g, '')}`}
+                      href={`https://api.whatsapp.com/send?phone=51${c.phone.replace(/[^0-9]/g, '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-emerald-600 font-bold"

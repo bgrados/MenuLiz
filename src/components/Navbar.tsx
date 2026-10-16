@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount, onOpenCart, onOpenAdm
           <div className="flex items-center gap-2 sm:gap-3">
             {/* WhatsApp Direct */}
             <a
-              href="https://wa.me/51999999999?text=Hola%20MenuLiz,%20deseo%20hacer%20una%20consulta%20sobre%20el%20men%C3%BA"
+              href="https://api.whatsapp.com/send?phone=51999999999&text=Hola%20MenuLiz,%20deseo%20hacer%20una%20consulta%20sobre%20el%20men%C3%BA"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:text-emerald-700 hover:bg-emerald-50 transition-colors border border-stone-200"
